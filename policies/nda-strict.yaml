@@ -1,0 +1,35 @@
+# NDA-strict policy.
+# Use case: working with client data under contractual restrictions.
+# Strategy: BLOCK anything that could plausibly identify the client; do not
+# rely on TOKENIZE because the token-map ledger itself becomes a contractual
+# record. See docs/threat-model.md A6.
+name: nda-strict
+version: "1"
+audit_only: false
+rules:
+  - category: private_key
+    action: BLOCK
+  - category: cloud_api_key
+    action: BLOCK
+  - category: database_url
+    action: BLOCK
+  - category: jwt
+    action: BLOCK
+  - category: secret
+    action: BLOCK
+  - category: customer_name
+    action: BLOCK
+  - category: account_number
+    action: BLOCK
+  - category: email
+    action: BLOCK
+  - category: domain
+    action: MASK
+  - category: internal_ip
+    action: MASK
+  - category: private_name
+    action: MASK
+  - category: private_phone
+    action: MASK
+  - category: private_address
+    action: MASK

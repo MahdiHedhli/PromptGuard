@@ -1,0 +1,34 @@
+# Healthcare-leaning policy.
+# Use case: developers handling PHI-adjacent data. Default to MASK for
+# personal identifiers (no token-map ledger that might exceed retention
+# rules under HIPAA). BLOCK credentials and account numbers outright.
+name: healthcare-leaning
+version: "1"
+audit_only: false
+rules:
+  - category: private_key
+    action: BLOCK
+  - category: cloud_api_key
+    action: BLOCK
+  - category: database_url
+    action: BLOCK
+  - category: jwt
+    action: BLOCK
+  - category: secret
+    action: BLOCK
+  - category: account_number
+    action: BLOCK
+  - category: private_name
+    action: MASK
+  - category: private_phone
+    action: MASK
+  - category: private_address
+    action: MASK
+  - category: email
+    action: MASK
+  - category: domain
+    action: MASK
+  - category: internal_ip
+    action: MASK
+  - category: customer_name
+    action: MASK

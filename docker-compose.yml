@@ -1,0 +1,80 @@
+# PromptGuard local stack: LiteLLM + Presidio analyzer + OPF service.
+#
+# Up:    docker compose up -d
+# Logs:  docker compose logs -f
+# Down:  docker compose down
+#
+# The OPF service downloads its model on first /detect (~3GB). Health is
+# reported by the FastAPI server immediately; readiness (model loaded) is
+# at /ready on port 8081.
+
+services:
+  litellm:
+    image: ghcr.io/berriai/litellm:main-stable
+    container_name: promptguard-litellm
+    ports:
+      - "${PROMPTGUARD_LITELLM_PORT:-4000}:4000"
+    environment:
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:-sk-promptguard-dev}
+    volumes:
+      - ./docker/litellm/config.yaml:/app/config.yaml:ro
+    command: ["--config", "/app/config.yaml", "--port", "4000", "--host", "0.0.0.0"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:4000/health/liveliness', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
+    networks:
+      - promptguard
+    depends_on:
+      presidio-analyzer:
+        condition: service_healthy
+      opf-service:
+        condition: service_healthy
+
+  presidio-analyzer:
+    image: mcr.microsoft.com/presidio-analyzer:latest
+    container_name: promptguard-presidio-analyzer
+    ports:
+      - "${PROMPTGUARD_PRESIDIO_PORT:-5002}:3000"
+    environment:
+      PORT: "3000"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:3000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      start_period: 60s
+      retries: 5
+    networks:
+      - promptguard
+
+  opf-service:
+    build:
+      context: ./src/promptguard/services/opf_service
+      dockerfile: Dockerfile
+    container_name: promptguard-opf
+    ports:
+      - "${PROMPTGUARD_OPF_PORT:-8081}:8081"
+    environment:
+      OPF_MODEL_ID: ${OPF_MODEL_ID:-openai/privacy-filter}
+      OPF_DEVICE: ${OPF_DEVICE:-cpu}
+    volumes:
+      - opf-model-cache:/cache/huggingface
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8081/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
+    networks:
+      - promptguard
+
+volumes:
+  opf-model-cache:
+
+networks:
+  promptguard:
+    driver: bridge

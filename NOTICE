@@ -1,0 +1,15 @@
+PromptGuard
+Copyright 2026 Mahdi Hedhli / 42 Holdings
+
+This product includes software developed at 42 Holdings.
+
+This product contains, or is derived from, regular-expression patterns
+sourced from the following projects, used under their respective licenses
+(both compatible with Apache 2.0):
+
+  - gitleaks (https://github.com/gitleaks/gitleaks), MIT License,
+    Copyright (c) 2019 Zachary Rice.
+  - detect-secrets (https://github.com/Yelp/detect-secrets), Apache 2.0 License,
+    Copyright (c) 2018 Yelp.
+
+Pattern attribution is preserved per-pattern in src/promptguard/detectors/regex_patterns.py.

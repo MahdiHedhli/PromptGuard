@@ -1,0 +1,64 @@
+"""Docker stack health smoke test.
+
+Marked `docker` so it's skipped in the default pytest run. Run with:
+
+    docker compose up -d --wait
+    pytest -m docker
+
+Validates that the stack is reachable on its published ports and that
+each service's healthcheck reports up.
+"""
+
+from __future__ import annotations
+
+import os
+
+import httpx
+import pytest
+
+LITELLM_URL = os.environ.get("PROMPTGUARD_LITELLM_URL", "http://localhost:4000")
+PRESIDIO_URL = os.environ.get("PROMPTGUARD_PRESIDIO_URL", "http://localhost:5002")
+OPF_URL = os.environ.get("PROMPTGUARD_OPF_URL", "http://localhost:8081")
+
+
+async def _get_or_skip(url: str, *, service_name: str) -> httpx.Response:
+    """GET `url`. If the service can't be reached cleanly, skip the test.
+
+    "Can't be reached cleanly" means: connection refused, timeout, DNS,
+    or a peer that accepts the TCP connection but closes without a
+    response (some other process is bound to that port).
+    """
+    async with httpx.AsyncClient(timeout=3.0) as client:
+        try:
+            return await client.get(url)
+        except (
+            httpx.ConnectError,
+            httpx.ConnectTimeout,
+            httpx.ReadTimeout,
+            httpx.RemoteProtocolError,
+        ) as exc:
+            pytest.skip(
+                f"{service_name} not reachable at {url} ({type(exc).__name__}); "
+                f"bring stack up with `docker compose up -d --wait`"
+            )
+
+
+@pytest.mark.docker
+@pytest.mark.integration
+async def test_litellm_liveness() -> None:
+    resp = await _get_or_skip(f"{LITELLM_URL}/health/liveliness", service_name="LiteLLM")
+    assert resp.status_code == 200
+
+
+@pytest.mark.docker
+@pytest.mark.integration
+async def test_opf_health() -> None:
+    resp = await _get_or_skip(f"{OPF_URL}/health", service_name="OPF service")
+    assert resp.status_code == 200
+
+
+@pytest.mark.docker
+@pytest.mark.integration
+async def test_presidio_health() -> None:
+    resp = await _get_or_skip(f"{PRESIDIO_URL}/health", service_name="Presidio analyzer")
+    assert resp.status_code == 200

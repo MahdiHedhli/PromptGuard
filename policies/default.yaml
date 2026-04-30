@@ -1,0 +1,33 @@
+# PromptGuard default policy.
+# Mapping is from research-notes.md section 5 ("Default policy mapping").
+# Categories not listed here are ALLOW by default.
+name: default
+version: "1"
+audit_only: false
+rules:
+  - category: private_key
+    action: BLOCK
+  - category: cloud_api_key
+    action: BLOCK
+  - category: database_url
+    action: BLOCK
+  - category: jwt
+    action: BLOCK
+  - category: secret
+    action: BLOCK
+  - category: account_number
+    action: TOKENIZE
+  - category: email
+    action: MASK
+  - category: domain
+    action: TOKENIZE
+  - category: internal_ip
+    action: TOKENIZE
+  - category: customer_name
+    action: TOKENIZE
+  - category: private_name
+    action: MASK
+  - category: private_phone
+    action: MASK
+  - category: private_address
+    action: MASK

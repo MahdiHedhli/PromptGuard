@@ -1,0 +1,28 @@
+# LiteLLM proxy config for PromptGuard.
+# v1 ships Anthropic + OpenAI-compatible upstreams. Keys are read from
+# environment variables; no secrets in this file.
+# The PromptGuard pre-call / post-call hooks will land in Day 2; for Day 1
+# this is a vanilla LiteLLM proxy that forwards traffic so we can prove the
+# stack is wired up.
+
+model_list:
+  - model_name: claude-sonnet-4-6
+    litellm_params:
+      model: anthropic/claude-sonnet-4-6
+      api_key: os.environ/ANTHROPIC_API_KEY
+  - model_name: claude-opus-4-7
+    litellm_params:
+      model: anthropic/claude-opus-4-7
+      api_key: os.environ/ANTHROPIC_API_KEY
+  - model_name: gpt-4o-mini
+    litellm_params:
+      model: openai/gpt-4o-mini
+      api_key: os.environ/OPENAI_API_KEY
+
+litellm_settings:
+  set_verbose: false
+  drop_params: true
+  telemetry: false
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
