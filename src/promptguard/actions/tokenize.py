@@ -1,84 +1,221 @@
-"""TOKENIZE action: forward path only at v1.
+"""TOKENIZE action: forward path + reverse path (non-streaming and streaming).
 
-Replaces each detected span with a unique-per-(conversation, original)
-token like `[EMAIL_001]`. The mapping (token -> original) is recorded in
-a `TokenMap` that lives for the duration of the conversation. The reverse
-path that substitutes originals back into streamed responses is Day 3-4
-work; for now it is a stubbed identity function.
+Token format (DEC-012):
 
-Token IDs are issued sequentially per category per conversation. This
-keeps tokens human-readable in prompts. For threat-model A7 (an LLM
-trying to manipulate restoration by emitting a chosen token), the
-sequential ID is acceptable because restoration is a pure dict lookup
-into a per-conversation map; the LLM cannot guess across conversations.
-v1.1 hardening will replace sequential IDs with random ones if a real
-attack is demonstrated. See research-notes section 10 question 5.
+    [CATEGORY_<16-hex>]    e.g. [EMAIL_a3f9c1d2e4b56789]
+
+The 16 hex characters come from `secrets.token_hex(8)`, giving 64 bits of
+entropy. Sequential IDs were a prompt-injection vector: a malicious LLM
+could emit `[EMAIL_001]` to surface another value from the same
+conversation map. With unguessable random suffixes the attack requires
+~2^63 expected guesses, well outside any prompt-injection budget. See
+DEC-012 and threat-model A7.
+
+ConversationTokenMap (DEC-013):
+
+  Per-conversation map evicted by TTL (one hour since last access) and
+  max-conversation LRU (100 conversations). Either condition is sufficient
+  to evict. Memory budget at worst case is ~25 MB; the bounds exist to
+  satisfy the threat-model retention promise (A6), not for memory
+  reasons.
+
+Reverse path:
+
+  `restore(conversation_id, text)` finds every token via `_TOKEN_RE` and
+  substitutes back from the conversation's own map. Tokens not in the
+  map pass through unchanged ("never invent reverse mappings").
 """
 
 from __future__ import annotations
 
-from collections import defaultdict
+import os
+import re
+import secrets
+import time
+from collections import OrderedDict
 from threading import Lock
+from typing import Final
 
 from promptguard.actions.base import Action, ActionContext, ActionResult, AuditEntry
 from promptguard.core.detection import Detection
 from promptguard.core.policy import Category
 
+# DEC-012: token format and recogniser pattern. Allows growth past 16 hex
+# without code change; we never shrink, so `{16,}` is forward-compatible.
+TOKEN_HEX_LEN: Final[int] = 16
+_TOKEN_RE: Final[re.Pattern[str]] = re.compile(r"\[[A-Z][A-Z_]*_[a-f0-9]{16,}\]")
 
-class TokenMap:
-    """In-memory per-conversation map: original <-> token, both directions.
+# DEC-013: eviction defaults. Operators override via env.
+DEFAULT_TTL_SECONDS: Final[int] = int(
+    os.environ.get("PROMPTGUARD_TOKEN_MAP_TTL_S", "3600")
+)
+DEFAULT_MAX_CONVERSATIONS: Final[int] = int(
+    os.environ.get("PROMPTGUARD_TOKEN_MAP_MAX_CONVERSATIONS", "100")
+)
 
-    v1 keeps the map in process memory. Per the threat model (A6) we never
-    persist this across process restarts. Day 3-4 will lift this into a
-    proper module that handles streaming response rewriting; for v1 the
-    forward path is what's wired and the reverse is identity.
-    """
+
+def is_token_string(s: str) -> bool:
+    """True iff `s` is exactly a single PromptGuard token (no surrounding text)."""
+    return bool(_TOKEN_RE.fullmatch(s))
+
+
+def find_tokens(text: str) -> list[re.Match[str]]:
+    """Return all token matches in `text`."""
+    return list(_TOKEN_RE.finditer(text))
+
+
+def _new_random_suffix() -> str:
+    return secrets.token_hex(TOKEN_HEX_LEN // 2)
+
+
+class _ConversationState:
+    """Per-conversation forward + reverse maps."""
+
+    __slots__ = ("token_to_original", "original_to_token", "last_access_monotonic")
 
     def __init__(self) -> None:
-        # conversation_id -> category -> next sequence number
-        self._counters: dict[str, dict[Category, int]] = defaultdict(
-            lambda: defaultdict(int)
-        )
-        # conversation_id -> token -> original
-        self._token_to_original: dict[str, dict[str, str]] = defaultdict(dict)
-        # conversation_id -> (category, original) -> token  (for re-issuing)
-        self._original_to_token: dict[str, dict[tuple[Category, str], str]] = (
-            defaultdict(dict)
-        )
+        self.token_to_original: dict[str, str] = {}
+        self.original_to_token: dict[tuple[Category, str], str] = {}
+        self.last_access_monotonic: float = time.monotonic()
+
+
+class TokenMap:
+    """Per-conversation token map with TTL + LRU eviction (DEC-013).
+
+    Public API:
+      issue(conversation_id, category, original) -> token  (forward)
+      restore(conversation_id, text)             -> text   (reverse)
+      lookup(conversation_id, token)             -> str | None  (used by streaming)
+      issued_tokens(conversation_id)             -> dict   (snapshot, used by tests)
+
+    Eviction runs on every public call. A conversation is evicted if its
+    last access is older than `ttl_seconds`, or if the total map size
+    exceeds `max_conversations` (oldest by last access dropped first).
+    """
+
+    def __init__(
+        self,
+        max_conversations: int = DEFAULT_MAX_CONVERSATIONS,
+        ttl_seconds: int = DEFAULT_TTL_SECONDS,
+    ) -> None:
+        if max_conversations < 1:
+            raise ValueError("max_conversations must be >= 1")
+        if ttl_seconds < 1:
+            raise ValueError("ttl_seconds must be >= 1")
+        self._max = max_conversations
+        self._ttl = ttl_seconds
+        # OrderedDict gives us O(1) move-to-end for LRU touch.
+        self._states: OrderedDict[str, _ConversationState] = OrderedDict()
         self._lock = Lock()
 
+    # -- public API --------------------------------------------------
+
     def issue(self, conversation_id: str, category: Category, original: str) -> str:
-        """Get or issue a token for `original` in this conversation."""
+        """Get or issue a token for `original` in this conversation.
+
+        Idempotency: a re-issue of the same `(category, original)` in the
+        same conversation returns the same token. This is what makes the
+        engine idempotent on retag of already-rewritten text.
+        """
         with self._lock:
-            existing = self._original_to_token[conversation_id].get((category, original))
+            state = self._touch(conversation_id, create=True)
+            existing = state.original_to_token.get((category, original))
             if existing is not None:
                 return existing
-            counter = self._counters[conversation_id]
-            counter[category] += 1
-            token = f"[{category.value.upper()}_{counter[category]:03d}]"
-            self._token_to_original[conversation_id][token] = original
-            self._original_to_token[conversation_id][(category, original)] = token
-            return token
+            # Vanishingly unlikely collision check: token must be unique
+            # within this conversation's reverse map. With 64 bits of
+            # entropy, retry on collision.
+            for _ in range(8):
+                token = f"[{category.value.upper()}_{_new_random_suffix()}]"
+                if token not in state.token_to_original:
+                    state.token_to_original[token] = original
+                    state.original_to_token[(category, original)] = token
+                    return token
+            raise RuntimeError(
+                "TokenMap exhausted 8 random-suffix collision retries; "
+                "this should be statistically impossible. Check that "
+                "secrets.token_hex is not deterministic in this environment."
+            )
+
+    def lookup(self, conversation_id: str, token: str) -> str | None:
+        """Return the original for a token in this conversation, or None.
+
+        Used by both `restore` and the streaming restorer. Touches LRU.
+        """
+        with self._lock:
+            state = self._touch(conversation_id, create=False)
+            if state is None:
+                return None
+            return state.token_to_original.get(token)
 
     def restore(self, conversation_id: str, text: str) -> str:
-        """Reverse path. Day 3-4 implements substitution and streaming.
+        """Substitute every known token in `text` with its original.
 
-        For Day 2 this is the identity function. The forward path still
-        registers tokens so when Day 3-4 lands, every conversation that
-        had tokens issued has a working reverse path on the very next call.
-
-        TODO(day-3-4): substitute every issued token in `text` with its
-        original value. Handle SSE chunk boundaries per research-notes
-        section 6 (streaming TOKENIZE buffering). See also section 10
-        question 1 on buffer size.
+        Tokens not in this conversation's map pass through unchanged.
+        Pure string substitution; the LLM never controls a key lookup.
         """
-        return text
+        with self._lock:
+            state = self._touch(conversation_id, create=False)
+            if state is None or not state.token_to_original:
+                return text
+            return _TOKEN_RE.sub(
+                lambda m: state.token_to_original.get(m.group(0), m.group(0)),
+                text,
+            )
 
     def issued_tokens(self, conversation_id: str) -> dict[str, str]:
-        """Snapshot of token -> original for the given conversation."""
+        """Snapshot copy of token -> original for the given conversation."""
         with self._lock:
-            return dict(self._token_to_original.get(conversation_id, {}))
+            state = self._touch(conversation_id, create=False)
+            if state is None:
+                return {}
+            return dict(state.token_to_original)
 
+    def conversation_count(self) -> int:
+        with self._lock:
+            self._evict_expired()
+            return len(self._states)
+
+    # -- internals ---------------------------------------------------
+
+    def _touch(
+        self, conversation_id: str, *, create: bool
+    ) -> _ConversationState | None:
+        """Return the state, refreshing its LRU position. Caller holds lock."""
+        self._evict_expired()
+        state = self._states.get(conversation_id)
+        if state is None:
+            if not create:
+                return None
+            state = _ConversationState()
+            self._states[conversation_id] = state
+            self._evict_lru()
+        else:
+            self._states.move_to_end(conversation_id)
+            state.last_access_monotonic = time.monotonic()
+        return state
+
+    def _evict_expired(self) -> None:
+        now = time.monotonic()
+        # Expired entries are the LRU end of the dict. Walk until we find
+        # one that's not expired; iterate over a snapshot to avoid mutate-
+        # during-iteration.
+        to_remove: list[str] = []
+        for cid, state in self._states.items():
+            if now - state.last_access_monotonic > self._ttl:
+                to_remove.append(cid)
+            else:
+                break  # OrderedDict: earlier entries are older; once we hit
+                # a fresh one, the rest are fresh too.
+        for cid in to_remove:
+            self._states.pop(cid, None)
+
+    def _evict_lru(self) -> None:
+        while len(self._states) > self._max:
+            self._states.popitem(last=False)
+
+
+# -- TokenizeAction (forward path) -----------------------------------
 
 class TokenizeAction(Action):
     name: str = "TOKENIZE"

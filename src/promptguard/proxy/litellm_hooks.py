@@ -28,9 +28,10 @@ import logging
 import os
 import secrets
 import time
+from collections.abc import AsyncGenerator, AsyncIterator
 from typing import Any
 
-from promptguard.actions import ActionContext, ActionEngine
+from promptguard.actions import ActionContext, ActionEngine, TokenMap
 from promptguard.actions.base import Violation
 from promptguard.core.detection import DetectionPipeline
 from promptguard.core.pipeline_factory import build_pipeline_from_policy
@@ -67,6 +68,10 @@ class PromptGuardHook:
         self._policy = policy
         self._pipeline = pipeline
         self._engine = engine
+
+    @property
+    def token_map(self) -> TokenMap:
+        return self._engine.token_map
 
     @classmethod
     def from_env(cls) -> PromptGuardHook:
@@ -130,6 +135,16 @@ class PromptGuardHook:
             else None
         ) or request_id
 
+        # Persist conversation_id and request_id back into metadata so the
+        # post-call hook can find them. The post-call sees this same `data`
+        # dict (LiteLLM threads it through). Without this, the post-call
+        # has no way to identify the conversation and TOKENIZE round-trip
+        # silently does nothing on the response.
+        if not isinstance(data.get("metadata"), dict):
+            data["metadata"] = {}
+        data["metadata"]["conversation_id"] = conversation_id
+        data["metadata"]["promptguard_request_id"] = request_id
+
         paths_and_strings = extract_inspectable_strings(data)
         if not paths_and_strings:
             return data
@@ -190,3 +205,214 @@ def _coerce_violations(raw: Any) -> list[Violation]:
     for v in raw or []:
         out.append(Violation(category=v["category"], detector=v["detector"], confidence=v.get("confidence", 1.0)))
     return out
+
+
+# -- Reverse path: post-call hooks ---------------------------------
+
+
+def _conversation_id_from_request(request_data: dict[str, Any] | None) -> str | None:
+    """Extract conversation_id from a request body's metadata.
+
+    Mirrors what `_inspect` writes during pre-call. If no metadata, no
+    restoration can happen for this request; the post-call hook treats
+    that as a no-op (the response was clean).
+    """
+    if not request_data:
+        return None
+    metadata = request_data.get("metadata")
+    if isinstance(metadata, dict):
+        cid = metadata.get("conversation_id")
+        if isinstance(cid, str) and cid:
+            return cid
+    return None
+
+
+def _restore_strings_in_object(token_map: TokenMap, conversation_id: str, obj: Any) -> Any:
+    """In-place walk: substitute tokens in every string value.
+
+    Returns the same object (mutated). Mutation in place keeps LiteLLM's
+    typed response objects intact (we do not return a new instance).
+    """
+    if isinstance(obj, str):
+        # Strings cannot be mutated in place; the caller must reassign.
+        return token_map.restore(conversation_id, obj)
+    if isinstance(obj, dict):
+        for key, value in list(obj.items()):
+            obj[key] = _restore_strings_in_object(token_map, conversation_id, value)
+        return obj
+    if isinstance(obj, list):
+        for i, value in enumerate(obj):
+            obj[i] = _restore_strings_in_object(token_map, conversation_id, value)
+        return obj
+    if hasattr(obj, "__dict__") and not isinstance(obj, type):
+        # Pydantic BaseModel / dataclass / plain object: walk attributes.
+        for name, value in list(vars(obj).items()):
+            if name.startswith("_"):
+                continue
+            new_value = _restore_strings_in_object(token_map, conversation_id, value)
+            try:
+                setattr(obj, name, new_value)
+            except Exception:
+                # Frozen / read-only; leave as-is.
+                pass
+        return obj
+    return obj
+
+
+# Add post-call hooks to PromptGuardHook -----------------------------
+
+
+async def _async_post_call_success_hook(
+    self: PromptGuardHook,
+    data: dict[str, Any],
+    user_api_key_dict: Any,
+    response: Any,
+) -> Any:
+    """Non-streaming reverse path.
+
+    Walk the response; restore tokens in every string field. Conversation
+    ID comes from the request body metadata that the pre-call hook
+    populated.
+    """
+    cid = _conversation_id_from_request(data)
+    if cid is None:
+        return response
+    return _restore_strings_in_object(self.token_map, cid, response)
+
+
+async def _async_post_call_streaming_iterator_hook(
+    self: PromptGuardHook,
+    user_api_key_dict: Any,
+    response: AsyncIterator[Any],
+    request_data: dict[str, Any],
+) -> AsyncGenerator[Any, None]:
+    """Streaming reverse path.
+
+    LiteLLM yields chunk objects: for /chat/completions these are
+    `ModelResponseStream` with `.choices[i].delta.content`; for /v1/messages
+    Anthropic native, they are pre-serialized SSE frame strings or dicts
+    representing the parsed event JSON. We support both:
+
+    * For `dict` / typed-object chunks, `_restore_strings_in_object`
+      walks every string field.
+    * For `str` / `bytes` chunks (raw SSE frames), we run our SSE byte
+      restorer over the chunk inline. The restorer is stateless within
+      a single chunk because Anthropic emits each event as a complete
+      SSE frame; tokens never straddle frames.
+    """
+    import sys
+
+    from promptguard.actions.tokenize import _TOKEN_RE
+
+    from promptguard.proxy.streaming import restore_sse_blob
+
+    cid = _conversation_id_from_request(request_data)
+    async for chunk in response:
+        if cid is None:
+            yield chunk
+            continue
+        if isinstance(chunk, (bytes, bytearray)):
+            yield restore_sse_blob(self.token_map, cid, bytes(chunk))
+        elif isinstance(chunk, str):
+            yield restore_sse_blob(
+                self.token_map, cid, chunk.encode("utf-8")
+            ).decode("utf-8")
+        else:
+            _restore_strings_in_object(self.token_map, cid, chunk)
+            yield chunk
+
+
+
+
+async def _async_post_call_streaming_hook(
+    self: PromptGuardHook,
+    user_api_key_dict: Any,
+    response: str,
+) -> str:
+    """Per-chunk text reverse path. Used by some LiteLLM streaming code paths.
+
+    `response` is a partial text chunk. LiteLLM does not pass `request_data`
+    here, so we cannot reach the per-conversation map directly. Fall back
+    to scanning every conversation for matching tokens. With unguessable
+    random IDs (DEC-012) collisions across conversations are
+    statistically impossible, so this is safe.
+    """
+    if not response:
+        return response
+    # Defensive: if no token shape in the chunk at all, skip the lookup.
+    from promptguard.actions.tokenize import _TOKEN_RE
+
+    if not _TOKEN_RE.search(response):
+        return response
+    return _restore_across_conversations(self.token_map, response)
+
+
+def _restore_across_conversations(token_map: TokenMap, text: str) -> str:
+    """Substitute every token in `text` with its original from any
+    conversation that owns it. Used when no conversation_id is available
+    at the call site (per-chunk streaming path).
+
+    With 64-bit unguessable random suffixes (DEC-012) the chance that two
+    distinct conversations issued the same token is ~2^-64. We treat this
+    as zero: the first map that owns the token is the right answer.
+    """
+    from promptguard.actions.tokenize import _TOKEN_RE
+
+    # Take a snapshot of conversation IDs so we don't iterate while the
+    # map mutates under another request. We touch each conversation's
+    # last-access via lookup(), which is OK; restoration is read-only on
+    # the actual token-to-original mapping.
+    # Note: TokenMap does not currently expose conversation IDs publicly.
+    # We use a private-attr access path; this is intentional and tested.
+    ids = list(token_map._states.keys())  # noqa: SLF001  (private but stable)
+
+    def _sub(match: "re.Match[str]") -> str:
+        token = match.group(0)
+        for cid in ids:
+            original = token_map.lookup(cid, token)
+            if original is not None:
+                return original
+        return token
+
+    return _TOKEN_RE.sub(_sub, text)
+
+
+async def _async_post_call_streaming_deployment_hook(
+    self: PromptGuardHook,
+    request_data: dict[str, Any],
+    response_chunk: Any,
+    call_type: Any,
+) -> Any:
+    """Per-chunk deployment-level streaming hook.
+
+    Some LiteLLM streaming paths (notably the Anthropic native
+    `/v1/messages` pass-through) emit raw chunks here rather than via
+    the iterator-level hook. We restore tokens in any string content we
+    find on the chunk.
+    """
+    cid = _conversation_id_from_request(request_data)
+    if cid is None:
+        return response_chunk
+    if isinstance(response_chunk, (bytes, bytearray)):
+        try:
+            text = response_chunk.decode("utf-8")
+        except UnicodeDecodeError:
+            return response_chunk
+        restored = self.token_map.restore(cid, text)
+        return restored.encode("utf-8")
+    if isinstance(response_chunk, str):
+        return self.token_map.restore(cid, response_chunk)
+    # Object with attributes (typed chunk): mutate in place.
+    _restore_strings_in_object(self.token_map, cid, response_chunk)
+    return response_chunk
+
+
+# Bind the post-call helpers as methods on PromptGuardHook.
+PromptGuardHook.async_post_call_success_hook = _async_post_call_success_hook  # type: ignore[attr-defined]
+PromptGuardHook.async_post_call_streaming_iterator_hook = (  # type: ignore[attr-defined]
+    _async_post_call_streaming_iterator_hook
+)
+PromptGuardHook.async_post_call_streaming_hook = _async_post_call_streaming_hook  # type: ignore[attr-defined]
+PromptGuardHook.async_post_call_streaming_deployment_hook = (  # type: ignore[attr-defined]
+    _async_post_call_streaming_deployment_hook
+)

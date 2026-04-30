@@ -115,6 +115,9 @@ def test_tokenize_issues_unique_tokens_per_original() -> None:
 
 
 def test_tokenize_per_conversation_isolation() -> None:
+    """Each conversation issues independent random tokens (DEC-012)."""
+    import re as _re
+
     policy = Policy(
         name="t",
         rules=[PolicyRule(category=Category.INTERNAL_IP, action=Action.TOKENIZE)],
@@ -127,20 +130,50 @@ def test_tokenize_per_conversation_isolation() -> None:
     engine.apply(text, [det], ActionContext(conversation_id="B", request_id="r2"))
     a_tokens = shared_map.issued_tokens("A")
     b_tokens = shared_map.issued_tokens("B")
-    # Both conversations issued their own [INTERNAL_IP_001].
-    assert list(a_tokens.keys()) == ["[INTERNAL_IP_001]"]
-    assert list(b_tokens.keys()) == ["[INTERNAL_IP_001]"]
-    # And each map only records its own.
-    assert a_tokens != {} and b_tokens != {}
-    assert a_tokens["[INTERNAL_IP_001]"] == "10.0.0.1"
+    # Each conversation issued exactly one token of the expected shape.
+    pattern = _re.compile(r"\[INTERNAL_IP_[a-f0-9]{16,}\]")
+    assert len(a_tokens) == 1 and len(b_tokens) == 1
+    a_token = next(iter(a_tokens))
+    b_token = next(iter(b_tokens))
+    assert pattern.fullmatch(a_token), a_token
+    assert pattern.fullmatch(b_token), b_token
+    # The two random suffixes must differ (DEC-012 unguessability promise).
+    assert a_token != b_token
+    # Each map only records its own original.
+    assert a_tokens[a_token] == "10.0.0.1"
+    assert b_tokens[b_token] == "10.0.0.1"
+    # Conversation B's restorer must not surface conversation A's mapping.
+    assert shared_map.lookup("B", a_token) is None
+    assert shared_map.lookup("A", b_token) is None
 
 
-def test_tokenize_reverse_path_is_identity_at_v1() -> None:
-    """v1 ships the reverse path stubbed; Day 3-4 will replace this test."""
+def test_tokenize_reverse_path_round_trips_known_token() -> None:
+    """Reverse path substitutes back tokens issued in the same conversation."""
     tm = TokenMap()
-    tm.issue("conv", Category.EMAIL, "x@example.com")
-    out = tm.restore("conv", "the answer is [EMAIL_001] etc.")
-    assert out == "the answer is [EMAIL_001] etc."
+    token = tm.issue("conv", Category.EMAIL, "x@example.com")
+    out = tm.restore("conv", f"the answer is {token} etc.")
+    assert out == "the answer is x@example.com etc."
+
+
+def test_tokenize_reverse_path_passes_unknown_tokens_through() -> None:
+    """Tokens not in this conversation's map must NOT be substituted.
+
+    Defensive against threat-model A7: an LLM could emit a token that
+    looks like ours, but if we did not issue it for this conversation we
+    must not invent a mapping.
+    """
+    tm = TokenMap()
+    tm.issue("convA", Category.EMAIL, "alice@example.com")
+    out = tm.restore("convB", "ping [EMAIL_a3f9c1d2e4b56789] please")
+    assert out == "ping [EMAIL_a3f9c1d2e4b56789] please"
+
+
+def test_tokenize_idempotent_within_conversation() -> None:
+    """Re-tokenizing the same value in the same conversation returns the same token."""
+    tm = TokenMap()
+    a = tm.issue("conv", Category.EMAIL, "x@example.com")
+    b = tm.issue("conv", Category.EMAIL, "x@example.com")
+    assert a == b
 
 
 # ----------------- ALLOW + bucketing --------------------------------------

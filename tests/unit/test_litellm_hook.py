@@ -60,6 +60,8 @@ async def test_hook_rewrites_string_content_in_anthropic_messages_shape() -> Non
 
 async def test_hook_rewrites_anthropic_content_blocks() -> None:
     """messages[i].content as a list of {type:text, text:...} blocks."""
+    import re as _re
+
     body = {
         "model": "claude-opus-4-7",
         "system": "you are helpful",
@@ -75,7 +77,10 @@ async def test_hook_rewrites_anthropic_content_blocks() -> None:
     }
     rewritten = await _hook(_default_policy())._inspect(body)
     blocks = rewritten["messages"][0]["content"]
-    assert blocks[0]["text"].startswith("host is [INTERNAL_IP_001] and")
+    # Internal IP is TOKENIZE in default policy; token format is DEC-012.
+    assert _re.fullmatch(
+        r"host is \[INTERNAL_IP_[a-f0-9]{16,}\] and", blocks[0]["text"]
+    ), blocks[0]["text"]
     assert blocks[1]["text"] == "user is [EMAIL_REDACTED]"
     # Block types preserved
     assert blocks[0]["type"] == "text"

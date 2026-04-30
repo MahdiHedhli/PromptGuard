@@ -1,0 +1,25 @@
+# LiteLLM proxy config that routes claude-* models at the in-stack mock
+# upstream instead of api.anthropic.com. Used by the integration suite
+# to validate the TOKENIZE round-trip end-to-end without consuming real
+# Anthropic credits. Selected via PROMPTGUARD_LITELLM_CONFIG.
+
+model_list:
+  - model_name: claude-sonnet-4-6
+    litellm_params:
+      model: anthropic/claude-sonnet-4-6
+      api_key: mock-key
+      api_base: http://mock-anthropic:9099
+  - model_name: claude-opus-4-7
+    litellm_params:
+      model: anthropic/claude-opus-4-7
+      api_key: mock-key
+      api_base: http://mock-anthropic:9099
+
+litellm_settings:
+  set_verbose: false
+  drop_params: true
+  telemetry: false
+  callbacks: handler.proxy_handler_instance
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY

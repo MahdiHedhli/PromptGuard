@@ -45,5 +45,45 @@ class PromptGuardCallback(CustomLogger):
             user_api_key_dict, cache, data, call_type
         )
 
+    async def async_post_call_success_hook(
+        self,
+        data: dict[str, Any],
+        user_api_key_dict: Any,
+        response: Any,
+    ) -> Any:
+        return await self._hook.async_post_call_success_hook(
+            data, user_api_key_dict, response
+        )
+
+    async def async_post_call_streaming_iterator_hook(
+        self,
+        user_api_key_dict: Any,
+        response: Any,
+        request_data: dict[str, Any],
+    ) -> Any:
+        async for chunk in self._hook.async_post_call_streaming_iterator_hook(
+            user_api_key_dict, response, request_data
+        ):
+            yield chunk
+
+    async def async_post_call_streaming_hook(
+        self,
+        user_api_key_dict: Any,
+        response: str,
+    ) -> str:
+        return await self._hook.async_post_call_streaming_hook(
+            user_api_key_dict, response
+        )
+
+    async def async_post_call_streaming_deployment_hook(
+        self,
+        request_data: dict[str, Any],
+        response_chunk: Any,
+        call_type: Any,
+    ) -> Any:
+        return await self._hook.async_post_call_streaming_deployment_hook(
+            request_data, response_chunk, call_type
+        )
+
 
 proxy_handler_instance = PromptGuardCallback()
