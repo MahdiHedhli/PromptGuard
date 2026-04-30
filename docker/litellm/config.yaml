@@ -1,9 +1,7 @@
 # LiteLLM proxy config for PromptGuard.
 # v1 ships Anthropic + OpenAI-compatible upstreams. Keys are read from
-# environment variables; no secrets in this file.
-# The PromptGuard pre-call / post-call hooks will land in Day 2; for Day 1
-# this is a vanilla LiteLLM proxy that forwards traffic so we can prove the
-# stack is wired up.
+# environment variables; no secrets in this file. The PromptGuard pre-call
+# hook is wired via litellm_settings.callbacks below.
 
 model_list:
   - model_name: claude-sonnet-4-6
@@ -23,6 +21,7 @@ litellm_settings:
   set_verbose: false
   drop_params: true
   telemetry: false
+  callbacks: handler.proxy_handler_instance
 
 general_settings:
   master_key: os.environ/LITELLM_MASTER_KEY

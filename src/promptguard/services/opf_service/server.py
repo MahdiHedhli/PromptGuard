@@ -35,12 +35,14 @@ logger = logging.getLogger("promptguard.opf_service")
 
 MODEL_ID = os.environ.get("OPF_MODEL_ID", "openai/privacy-filter")
 DEVICE = os.environ.get("OPF_DEVICE", "cpu")  # "cpu" or "cuda" or "cuda:0"
+EAGER_LOAD = os.environ.get("OPF_EAGER_LOAD", "1") == "1"
 
 app = FastAPI(title="PromptGuard OPF service", version="0.1.0a1")
 
 _pipe: Any = None
 _pipe_load_error: str | None = None
 _lock = threading.Lock()
+_load_thread: threading.Thread | None = None
 
 
 class DetectRequest(BaseModel):
@@ -87,6 +89,37 @@ def _load_pipeline() -> Any:
             _pipe_load_error = f"{type(exc).__name__}: {exc}"
             logger.exception("OPF pipeline load failed")
             raise
+
+
+@app.on_event("startup")
+def _start_eager_load() -> None:
+    """Kick off a background load so `/ready` becomes meaningful.
+
+    Without this, the model only loads on the first `/detect` call, which
+    means a proxy that probes `/ready` at startup gets 503 forever and
+    refuses to start (DEC-009 OPF hard-fail semantics). Eager loading lets
+    `/ready` report load_failed loudly within seconds if the HF model is
+    misconfigured, as Mahdi specified in the Day-2 brief.
+
+    Disable with OPF_EAGER_LOAD=0 (useful for unit tests of the server).
+    """
+    global _load_thread
+    if not EAGER_LOAD:
+        logger.info("eager load disabled via OPF_EAGER_LOAD=0")
+        return
+    if _load_thread is not None:
+        return
+
+    def _bg() -> None:
+        try:
+            _load_pipeline()
+        except Exception:
+            # _load_pipeline already records the error; just don't crash
+            # the server thread.
+            logger.exception("eager OPF model load failed")
+
+    _load_thread = threading.Thread(target=_bg, name="opf-eager-load", daemon=True)
+    _load_thread.start()
 
 
 @app.get("/health")

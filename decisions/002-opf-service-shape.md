@@ -47,8 +47,8 @@ Both are technically Apache-2.0-compatible.
 OPF runs as a separate FastAPI service container exposed at `:8081`. The proxy talks to it via HTTP over the docker-compose network.
 
 The container has two health-related endpoints:
-- `GET /health` — returns 200 once FastAPI is up. Used by the docker-compose healthcheck.
-- `GET /ready` — returns 200 only once the model is loaded. Used by operators or tests that need to wait for warm state.
+- `GET /health`: returns 200 once FastAPI is up. Used by the docker-compose healthcheck.
+- `GET /ready`: returns 200 only once the model is loaded. Used by operators or tests that need to wait for warm state.
 
 The model is loaded **lazily** on the first `/detect` call. This means container startup is fast (`docker compose up -d` returns in seconds), but the first detection on a cold container is slow while ~3GB pulls.
 

@@ -11,7 +11,7 @@
 
 The bootstrap prompt lists "Presidio analyzer + anonymizer (containerized)" as a Day-1 service. Microsoft Presidio ships two complementary services: the analyzer (detects entity spans) and the anonymizer (rewrites them according to operators).
 
-Our action engine has its own semantics — BLOCK / MASK / TOKENIZE — with specific properties that Presidio's anonymizer vocabulary does not directly model:
+Our action engine has its own semantics (BLOCK / MASK / TOKENIZE) with specific properties that Presidio's anonymizer vocabulary does not directly model:
 - TOKENIZE is reversible per-conversation. Tokens are unguessable random IDs scoped to a conversation; restoration is pure substitution by the proxy on the streamed response.
 - MASK leaves no ledger anywhere. The original is dropped at the action boundary.
 - BLOCK rejects the request entirely with a structured violation.

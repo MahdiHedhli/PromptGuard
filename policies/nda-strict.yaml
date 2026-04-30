@@ -2,10 +2,22 @@
 # Use case: working with client data under contractual restrictions.
 # Strategy: BLOCK anything that could plausibly identify the client; do not
 # rely on TOKENIZE because the token-map ledger itself becomes a contractual
-# record. See docs/threat-model.md A6.
+# record (see docs/threat-model.md A6). Customer names and emails escalate
+# from default's TOKENIZE/MASK to BLOCK.
 name: nda-strict
 version: "1"
 audit_only: false
+
+detectors:
+  regex:
+    enabled: true
+  opf:
+    enabled: true
+  presidio:
+    enabled: true
+  llm_judge:
+    enabled: false
+
 rules:
   - category: private_key
     action: BLOCK

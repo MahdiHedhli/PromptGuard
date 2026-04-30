@@ -10,7 +10,12 @@
 
 services:
   litellm:
-    image: ghcr.io/berriai/litellm:main-stable
+    build:
+      context: .
+      dockerfile: docker/litellm/Dockerfile
+      args:
+        LITELLM_TAG: main-stable
+    image: promptguard-litellm:dev
     container_name: promptguard-litellm
     ports:
       - "${PROMPTGUARD_LITELLM_PORT:-4000}:4000"
@@ -18,8 +23,12 @@ services:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:-sk-promptguard-dev}
+      PROMPTGUARD_POLICY_FILE: ${PROMPTGUARD_POLICY_FILE:-/app/policies/default.yaml}
+      PROMPTGUARD_OPF_URL: http://opf-service:8081
+      PROMPTGUARD_PRESIDIO_URL: http://presidio-analyzer:3000
     volumes:
       - ./docker/litellm/config.yaml:/app/config.yaml:ro
+      - ./policies:/app/policies:ro
     command: ["--config", "/app/config.yaml", "--port", "4000", "--host", "0.0.0.0"]
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:4000/health/liveliness', timeout=3)"]

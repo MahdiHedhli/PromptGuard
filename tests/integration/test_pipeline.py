@@ -11,9 +11,9 @@ from __future__ import annotations
 
 import pytest
 
-from promptguard.actions import ActionEngine
+from promptguard.actions import ActionContext, ActionEngine
 from promptguard.core.detection import DetectionPipeline
-from promptguard.core.policy import Action, Category
+from promptguard.core.policy import Category
 from promptguard.detectors.regex_detector import RegexDetector
 from promptguard.policies.local_yaml import LocalYAMLPolicy
 
@@ -28,7 +28,11 @@ async def test_prompt_with_pii_routed_through_pipeline(
     engine = ActionEngine(policy)
 
     detections = await pipeline.detect_all(synthetic_pii_prompt)
-    outcome = engine.decide(detections)
+    result = engine.apply(
+        synthetic_pii_prompt,
+        detections,
+        ActionContext(conversation_id="conv-it-1", request_id="req-it-1"),
+    )
 
     cats = {d.category for d in detections}
     # The synthetic prompt contains DB URL, JWT, AWS key, internal IP, email, domain.
@@ -40,15 +44,14 @@ async def test_prompt_with_pii_routed_through_pipeline(
         Category.EMAIL,
     }.issubset(cats), f"missing expected categories, got {cats}"
 
-    # Default policy BLOCKs DB URL / JWT / cloud key, so the outcome must be blocked.
-    assert outcome.blocked, f"expected block; decisions={outcome.decisions}"
-
-    actions_by_category: dict[Category, Action] = {}
-    for d in outcome.decisions:
-        actions_by_category.setdefault(d.detection.category, d.action)
-    assert actions_by_category[Category.DATABASE_URL] == Action.BLOCK
-    assert actions_by_category[Category.EMAIL] == Action.MASK
-    assert actions_by_category[Category.INTERNAL_IP] == Action.TOKENIZE
+    # Default policy BLOCKs DB URL / JWT / cloud key, so the request must be blocked.
+    assert result.blocked, f"expected block; violations={result.violations}"
+    blocked_categories = {v.category for v in result.violations}
+    assert "database_url" in blocked_categories
+    assert "jwt" in blocked_categories
+    assert "cloud_api_key" in blocked_categories
+    # Block does not rewrite the text.
+    assert result.rewritten_text == synthetic_pii_prompt
 
 
 @pytest.mark.integration
@@ -61,9 +64,14 @@ async def test_clean_prompt_passes_through(
     engine = ActionEngine(policy)
 
     detections = await pipeline.detect_all(synthetic_clean_prompt)
-    outcome = engine.decide(detections)
+    result = engine.apply(
+        synthetic_clean_prompt,
+        detections,
+        ActionContext(conversation_id="conv-it-2", request_id="req-it-2"),
+    )
 
-    assert not outcome.blocked
+    assert not result.blocked
+    assert result.rewritten_text == synthetic_clean_prompt
     # No high-severity categories in clean prose.
     forbidden = {
         Category.PRIVATE_KEY,

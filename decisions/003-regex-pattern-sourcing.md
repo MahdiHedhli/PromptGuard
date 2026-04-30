@@ -37,10 +37,10 @@ Constraints:
 Vendor a curated subset of regex patterns into `src/promptguard/detectors/regex_patterns.py`. Source attribution is recorded per-pattern via the `source` field on `PatternSpec`. Aggregate attribution is in `/NOTICE`.
 
 Sources used at v1:
-- **gitleaks** rules — MIT (Apache 2.0-compatible). Used for AWS, GCP, Azure, JWT, Slack, GitHub PAT, PEM private key shapes.
-- **detect-secrets** plugins — Apache 2.0. Used for keyword + DB URL heuristics.
-- **Microsoft Presidio** recognizer shapes — MIT. Used as reference for the email pattern.
-- **Custom** — RFC 1918 IPv4 octet validation, conservative TLD list for domains, internal-corp / .local / .internal additions.
+- **gitleaks** rules, MIT (Apache 2.0-compatible). Used for AWS, GCP, Azure, JWT, Slack, GitHub PAT, PEM private key shapes.
+- **detect-secrets** plugins, Apache 2.0. Used for keyword and DB URL heuristics.
+- **Microsoft Presidio** recognizer shapes, MIT. Used as reference for the email pattern.
+- **Custom**: RFC 1918 IPv4 octet validation, conservative TLD list for domains, internal-corp / .local / .internal additions.
 
 Confidence scores are conservative. The regex layer is the "shape" floor; OPF (stage 2) and Presidio custom recognizers (stage 3) refine context.
 

@@ -11,7 +11,7 @@
 
 The Day-1 validation gate requires `docker compose up` to succeed and a simple integration test to confirm a prompt routes through the stack. It does *not* require the action engine to rewrite payloads (DEC-004) or for the proxy to enforce policy.
 
-LiteLLM supports custom callbacks for pre-call and post-call hooks. The natural place for PromptGuard to plug in is via these hooks. But the action engine rewrite is not implemented until Day 2 — so wiring the hooks today against a no-op rewrite is premature.
+LiteLLM supports custom callbacks for pre-call and post-call hooks. The natural place for PromptGuard to plug in is via these hooks. But the action engine rewrite is not implemented until Day 2, so wiring the hooks today against a no-op rewrite is premature.
 
 ## Decision
 

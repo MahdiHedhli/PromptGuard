@@ -1,4 +1,4 @@
-"""Policy primitives: categories, actions, rules.
+"""Policy primitives: categories, actions, rules, detector toggles.
 
 The action semantics are defined in docs/research-notes.md section 5.
 The default per-pattern mapping lives in policies/default.yaml.
@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from enum import StrEnum
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class Action(StrEnum):
@@ -38,17 +38,45 @@ class Category(StrEnum):
 class PolicyRule(BaseModel):
     """A single (category -> action) mapping with optional confidence floor."""
 
+    model_config = ConfigDict(extra="forbid")
+
     category: Category
     action: Action
     min_confidence: float = Field(default=0.0, ge=0.0, le=1.0)
 
 
+class DetectorToggle(BaseModel):
+    """Whether a single detector is enabled in this policy."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    enabled: bool = True
+
+
+class DetectorConfig(BaseModel):
+    """Per-detector enable flags.
+
+    Defaults match the v1 shipping posture: regex / OPF / Presidio on,
+    LLM judge off (research-notes Decision 6).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    regex: DetectorToggle = Field(default_factory=DetectorToggle)
+    opf: DetectorToggle = Field(default_factory=DetectorToggle)
+    presidio: DetectorToggle = Field(default_factory=DetectorToggle)
+    llm_judge: DetectorToggle = Field(default_factory=lambda: DetectorToggle(enabled=False))
+
+
 class Policy(BaseModel):
-    """A full policy: a name, version, and a list of per-category rules."""
+    """A full policy: a name, version, detector toggles, and a list of rules."""
+
+    model_config = ConfigDict(extra="forbid")
 
     name: str
     version: str = "1"
-    rules: list[PolicyRule]
+    detectors: DetectorConfig = Field(default_factory=DetectorConfig)
+    rules: list[PolicyRule] = Field(default_factory=list)
     audit_only: bool = False
 
     def action_for(self, category: Category, confidence: float) -> Action:

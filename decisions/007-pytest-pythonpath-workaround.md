@@ -57,7 +57,7 @@ Revisit by switching to setuptools (Option 1) if the workaround becomes painful 
 
 ### Revisit if
 - Hatchling renames its editable `.pth` to a non-underscore name.
-- `python -c` usage outside `uv run` becomes a frequent contributor pain point — at that point switch to setuptools backend.
+- `python -c` usage outside `uv run` becomes a frequent contributor pain point. At that point switch to setuptools backend.
 
 ## Implementation notes
 

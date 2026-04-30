@@ -1,7 +1,13 @@
-# PromptGuard default policy.
-# Mapping is from research-notes.md section 5 ("Default policy mapping").
-# Categories not listed here are ALLOW by default.
-name: default
+# Regex-only policy.
+# Use case: environments where the OPF model is not available (offline
+# install, restricted egress, etc.). Documented escape hatch from the
+# DetectorUnavailableError message: "To run without OPF detection, set
+# detectors.opf.enabled = false in your policy file."
+#
+# Coverage of structured secrets and RFC-1918 internal IPs is unchanged
+# from default. Coverage of context-aware PII (free-form names, addresses,
+# phones) is reduced because the OPF and Presidio stages are off.
+name: regex-only
 version: "1"
 audit_only: false
 
@@ -9,9 +15,9 @@ detectors:
   regex:
     enabled: true
   opf:
-    enabled: true
+    enabled: false
   presidio:
-    enabled: true
+    enabled: false
   llm_judge:
     enabled: false
 
