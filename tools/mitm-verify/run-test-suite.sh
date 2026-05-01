@@ -2,18 +2,28 @@
 # tools/mitm-verify/run-test-suite.sh
 #
 # Runs every prompt under tools/mitm-verify/test-prompts/ through the
-# proxy with the MITM verification overlay active, then writes a
-# summary report at ./local/mitm-captures/summary-<timestamp>.md.
+# proxy with the MITM overlay active and produces a summary report at
+# ./local/mitm-captures/summary-<UTC>.md.
 #
-# Prerequisites:
-#   1. The MITM stack is up:
-#        make -C tools/mitm-verify up
-#   2. ANTHROPIC_API_KEY is in .env (or already exported in the shell).
-#   3. The proxy is reachable at http://localhost:${PROMPTGUARD_LITELLM_PORT:-4100}.
+# For each prompt, the report shows:
+#   * what the user typed (truncated)
+#   * the proxy's HTTP status
+#   * for TOKENIZE/MASK prompts (200 status): the actual user-message
+#     content the upstream RECEIVED, so the operator sees the
+#     substituted token / mask tag in place. Plus positive assertions:
+#     - the literal PII string IS NOT present in upstream bytes
+#     - the expected substitution shape IS present
+#   * for BLOCK prompts (400 status): "no upstream capture; expected"
+#     (the request never reached the upstream)
+#   * a per-prompt verdict
 #
-# Output:
-#   ./local/mitm-captures/<UTC>-<flow>-{req,resp}.json   (per-flow)
-#   ./local/mitm-captures/summary-<UTC>.md               (one summary)
+# Verdict logic per prompt:
+#   BLOCK expected     -> 400 status AND no upstream capture                  -> PASS
+#   TOKENIZE expected  -> 200 status AND original-PII absent
+#                         AND token shape [CATEGORY_<16hex>] present          -> PASS
+#   MASK expected      -> 200 status AND original-PII absent
+#                         AND mask tag [CATEGORY_REDACTED] present            -> PASS
+#   anything else                                                             -> FAIL
 
 set -euo pipefail
 
@@ -32,22 +42,17 @@ SUMMARY="${CAPTURES_DIR}/summary-${TS}.md"
 
 mkdir -p "${CAPTURES_DIR}"
 
-# Sanity: stack reachable?
+# Stack reachability check.
 if ! curl -fsS -o /dev/null -m 5 "${LITELLM_URL}/health/liveliness"; then
     echo "ERROR: LiteLLM not reachable at ${LITELLM_URL}." >&2
     echo "  Bring up the MITM stack first: make -C tools/mitm-verify up" >&2
     exit 1
 fi
 
-# Sanity: mitmproxy reachable from this script for status?
-# (We don't strictly need direct access; the inline addon writes the
-#  captures. We do test that the CA file is present so we know the
-#  mitmproxy container is actually positioned in the upstream path.)
 CA_PATH="${ROOT_DIR}/local/mitm-ca/mitmproxy-ca-cert.pem"
 if [[ ! -f "${CA_PATH}" ]]; then
     echo "ERROR: ${CA_PATH} not found." >&2
     echo "  The mitmproxy container should have generated this on first start." >&2
-    echo "  Check 'docker compose -f docker-compose.yml -f tools/mitm-verify/docker-compose.mitm.yml ps'" >&2
     exit 2
 fi
 
@@ -64,37 +69,53 @@ fi
     echo
     echo "Each prompt under \`tools/mitm-verify/test-prompts/\` is sent"
     echo "through the proxy. The mitmproxy addon captures every byte the"
-    echo "proxy sends to api.anthropic.com (or any other configured upstream)."
-    echo "The summary below lists, for each prompt:"
+    echo "proxy sends to the upstream provider."
     echo
-    echo "  - what the user typed (the original prompt)"
-    echo "  - the proxy's HTTP response status code (200 = forwarded; 400 = BLOCKed)"
-    echo "  - whether the upstream-side capture leaked any obvious PII pattern"
-    echo "  - paths to the per-flow capture files for inspection"
+    echo "For prompts whose policy action is **BLOCK**, the request"
+    echo "never leaves the host; the report shows \"no upstream capture\"."
     echo
-    echo "**The verification gate:** the upstream capture should NEVER"
-    echo "contain the original PII for TOKENIZE/MASK categories, and BLOCK"
-    echo "rules should produce no upstream capture at all."
+    echo "For prompts whose policy action is **TOKENIZE** or **MASK**,"
+    echo "the request IS forwarded with the PII replaced; the report"
+    echo "shows the actual upstream-bound user-message content so the"
+    echo "operator can see the token / mask tag in place. Two positive"
+    echo "assertions run automatically: the literal PII is absent from"
+    echo "the upstream bytes, and the expected substitution shape is"
+    echo "present."
     echo
 } > "${SUMMARY}"
+
+# Per-prompt expectations: action and PII strings to assert about.
+EXPECTATIONS=(
+    "01-internal-ip|TOKENIZE|10.0.13.42"
+    "02-email|MASK|alice@internal-corp.example"
+    "03-aws-key|BLOCK|AKIAIOSFODNN7EXAMPLE"
+    "04-mixed|BLOCK|AKIAIOSFODNN7EXAMPLE,10.0.13.42,alice@internal-corp.example"
+    "05-private-key|BLOCK|-----BEGIN PRIVATE KEY-----"
+    "06-database-url|BLOCK|postgres://user:pass@db.internal:5432/prod"
+)
 
 PROMPT_COUNT=0
 PASS_COUNT=0
 FAIL_COUNT=0
 
-for prompt_file in "${PROMPTS_DIR}"/*.txt; do
+for entry in "${EXPECTATIONS[@]}"; do
     PROMPT_COUNT=$((PROMPT_COUNT + 1))
-    prompt_name=$(basename "${prompt_file}" .txt)
 
-    # Strip header comments; keep payload.
-    payload=$(grep -v '^#' "${prompt_file}" | sed '/^[[:space:]]*$/d' | head -c 8000)
+    prompt_name="${entry%%|*}"
+    rest="${entry#*|}"
+    expected_action="${rest%%|*}"
+    pii_csv="${rest#*|}"
+
+    prompt_file="${PROMPTS_DIR}/${prompt_name}.txt"
+    if [[ ! -f "${prompt_file}" ]]; then
+        echo "WARN: ${prompt_file} missing; skipping" >&2
+        FAIL_COUNT=$((FAIL_COUNT + 1))
+        continue
+    fi
+
+    payload=$(grep -v '^#' "${prompt_file}" | sed '/^[[:space:]]*$/d')
     payload_short=$(printf '%s' "${payload}" | head -c 200)
 
-    # Pre-test snapshot of capture file count, so we can list NEW captures.
-    before_count=$(find "${CAPTURES_DIR}" -name '*.json' -type f 2>/dev/null | wc -l | awk '{print $1}')
-
-    # Build a JSON body. Use python so we don't have to escape the
-    # payload manually.
     body=$(.venv/bin/python -c "
 import json, sys
 payload = sys.stdin.read()
@@ -104,7 +125,6 @@ print(json.dumps({
     'messages': [{'role': 'user', 'content': payload}],
 }))" <<< "${payload}")
 
-    # Issue the request.
     http_code=$(curl -sS -o /tmp/promptguard-mitm-resp.json -w '%{http_code}' \
         -X POST "${LITELLM_URL}/v1/messages" \
         -H "Authorization: Bearer ${MASTER_KEY}" \
@@ -114,48 +134,129 @@ print(json.dumps({
         --data-binary "${body}" \
         --max-time 30 || echo 000)
 
-    # Wait briefly for mitmproxy to flush captures.
     sleep 0.5
-    after_count=$(find "${CAPTURES_DIR}" -name '*.json' -type f 2>/dev/null | wc -l | awk '{print $1}')
 
-    # Inspect new captures: any suspicious-pattern counts?
-    new_captures=$(find "${CAPTURES_DIR}" -name '*-req.json' -type f -newer "${SUMMARY}" 2>/dev/null | sort)
-    leak_summary="(no upstream capture; expected for BLOCK)"
-    if [[ -n "${new_captures}" ]]; then
-        # Build a single-line leak summary from all new capture files.
-        leak_summary=$(.venv/bin/python -c "
+    new_request_captures=$(find "${CAPTURES_DIR}" -name '*-req.json' -type f \
+        -newer "${SUMMARY}" 2>/dev/null | sort)
+
+    upstream_user_text=""
+    upstream_blob=""
+    upstream_capture_path=""
+    if [[ -n "${new_request_captures}" ]]; then
+        for cap in ${new_request_captures}; do
+            host_match=$(.venv/bin/python -c "
 import json, sys
-totals = {}
-for path in sys.argv[1:]:
-    try:
-        with open(path) as f:
-            cap = json.load(f)
-    except Exception:
-        continue
-    counts = cap.get('suspicious_pattern_counts', {}) or {}
-    for k, v in counts.items():
-        totals[k] = totals.get(k, 0) + int(v)
-if not totals:
-    print('clean (no suspicious patterns in upstream-bound bytes)')
-else:
-    print('LEAK: ' + ', '.join(f'{k}={v}' for k, v in sorted(totals.items())))
-" ${new_captures})
+d = json.load(open('${cap}'))
+url = (d.get('request_url') or d.get('url') or '').lower()
+host = (d.get('host') or '').lower()
+if 'anthropic.com' in url or 'openai.com' in url or 'anthropic.com' in host:
+    print('YES')
+" 2>/dev/null || echo "")
+            if [[ "${host_match}" == "YES" ]]; then
+                upstream_capture_path="${cap}"
+                upstream_user_text=$(.venv/bin/python -c "
+import json, sys
+cap = json.load(open('${cap}'))
+body = cap.get('body')
+if isinstance(body, dict):
+    msgs = body.get('messages') or []
+    for m in msgs:
+        if m.get('role') == 'user':
+            c = m.get('content')
+            if isinstance(c, str):
+                print(c)
+                break
+            if isinstance(c, list):
+                parts = [b.get('text', '') for b in c if isinstance(b, dict) and b.get('type') == 'text']
+                print('\\n'.join(parts))
+                break
+" 2>/dev/null || echo "")
+                upstream_blob=$(.venv/bin/python -c "
+import json, sys
+cap = json.load(open('${cap}'))
+print(json.dumps(cap.get('body', '')))
+" 2>/dev/null || echo "")
+                break
+            fi
+        done
     fi
 
-    # Determine pass/fail.
-    pass="PASS"
-    if [[ "${http_code}" != "200" && "${http_code}" != "400" ]]; then
-        pass="FAIL: unexpected HTTP ${http_code}"
-        FAIL_COUNT=$((FAIL_COUNT + 1))
-    elif [[ "${leak_summary}" == LEAK:* ]]; then
-        pass="FAIL: ${leak_summary}"
-        FAIL_COUNT=$((FAIL_COUNT + 1))
-    else
+    verdict_lines=()
+    pass_this=true
+
+    case "${expected_action}" in
+    BLOCK)
+        if [[ "${http_code}" != "400" ]]; then
+            verdict_lines+=("  - expected HTTP 400 (BLOCK); got ${http_code}")
+            pass_this=false
+        fi
+        if [[ -n "${upstream_capture_path}" ]]; then
+            verdict_lines+=("  - upstream capture exists (${upstream_capture_path}); should not for BLOCK")
+            pass_this=false
+        fi
+        ;;
+    TOKENIZE)
+        if [[ "${http_code}" != "200" ]]; then
+            verdict_lines+=("  - expected HTTP 200 (TOKENIZE forwards); got ${http_code}")
+            pass_this=false
+        fi
+        if [[ -z "${upstream_capture_path}" ]]; then
+            verdict_lines+=("  - expected an upstream capture for TOKENIZE; none found")
+            pass_this=false
+        else
+            IFS=',' read -ra pii_strings <<< "${pii_csv}"
+            for pii in "${pii_strings[@]}"; do
+                if [[ -n "${pii}" ]] && grep -qF -- "${pii}" <<< "${upstream_blob}"; then
+                    verdict_lines+=("  - LITERAL PII LEAK: \"${pii}\" found in upstream-bound body")
+                    pass_this=false
+                fi
+            done
+            if ! grep -qE '\[[A-Z][A-Z_]*_[a-f0-9]{16,}\]' <<< "${upstream_blob}"; then
+                verdict_lines+=("  - expected a token-shaped substitution [CATEGORY_<hex>] in upstream body; not present")
+                pass_this=false
+            fi
+        fi
+        ;;
+    MASK)
+        if [[ "${http_code}" != "200" ]]; then
+            verdict_lines+=("  - expected HTTP 200 (MASK forwards); got ${http_code}")
+            pass_this=false
+        fi
+        if [[ -z "${upstream_capture_path}" ]]; then
+            verdict_lines+=("  - expected an upstream capture for MASK; none found")
+            pass_this=false
+        else
+            IFS=',' read -ra pii_strings <<< "${pii_csv}"
+            for pii in "${pii_strings[@]}"; do
+                if [[ -n "${pii}" ]] && grep -qF -- "${pii}" <<< "${upstream_blob}"; then
+                    verdict_lines+=("  - LITERAL PII LEAK: \"${pii}\" found in upstream-bound body")
+                    pass_this=false
+                fi
+            done
+            if ! grep -qE '\[[A-Z][A-Z_]*_REDACTED\]' <<< "${upstream_blob}"; then
+                verdict_lines+=("  - expected a mask tag [<CATEGORY>_REDACTED] in upstream body; not present")
+                pass_this=false
+            fi
+        fi
+        ;;
+    *)
+        verdict_lines+=("  - unknown expected action ${expected_action}")
+        pass_this=false
+        ;;
+    esac
+
+    if ${pass_this}; then
+        verdict="PASS"
         PASS_COUNT=$((PASS_COUNT + 1))
+    else
+        verdict="FAIL"
+        FAIL_COUNT=$((FAIL_COUNT + 1))
     fi
 
     {
         echo "## ${prompt_name}"
+        echo
+        echo "**Expected action:** ${expected_action}"
         echo
         echo "**Prompt (truncated to 200 chars):**"
         echo
@@ -165,29 +266,50 @@ else:
         echo
         echo "**Proxy HTTP status:** ${http_code}"
         echo
-        echo "**Upstream-bound bytes:** ${leak_summary}"
-        echo
-        echo "**New capture files this run:**"
-        echo
-        if [[ -n "${new_captures}" ]]; then
-            for cap in ${new_captures}; do
-                echo "  - \`${cap#$ROOT_DIR/}\`"
-            done
+        if [[ "${expected_action}" == "BLOCK" ]]; then
+            if [[ -z "${upstream_capture_path}" ]]; then
+                echo "**Upstream capture:** none (request blocked at proxy, never reached upstream)"
+            else
+                echo "**Upstream capture (UNEXPECTED for BLOCK):**"
+                echo
+                echo "  - \`${upstream_capture_path#$ROOT_DIR/}\`"
+            fi
         else
-            echo "  (none)"
+            if [[ -n "${upstream_capture_path}" ]]; then
+                echo "**Upstream-bound user-message content (what api.anthropic.com received):**"
+                echo
+                echo '```'
+                if [[ -n "${upstream_user_text}" ]]; then
+                    printf '%s\n' "${upstream_user_text}" | head -c 800
+                    echo
+                else
+                    echo "(no user-message content extracted; full capture body file below)"
+                fi
+                echo '```'
+                echo
+                echo "**Capture file:** \`${upstream_capture_path#$ROOT_DIR/}\`"
+            else
+                echo "**Upstream capture:** MISSING (expected one for ${expected_action})"
+            fi
         fi
         echo
-        echo "**Verdict:** ${pass}"
+        if ${pass_this}; then
+            echo "**Verdict: PASS**"
+        else
+            echo "**Verdict: FAIL**"
+            echo
+            for line in "${verdict_lines[@]}"; do
+                echo "${line}"
+            done
+        fi
         echo
         echo "---"
         echo
     } >> "${SUMMARY}"
 
-    # Touch summary so the "newer than" check resets for the next prompt.
     touch "${SUMMARY}"
 done
 
-# Tail.
 {
     echo "## Run summary"
     echo
@@ -196,11 +318,13 @@ done
     echo "Fail:          ${FAIL_COUNT}"
     echo
     if [[ "${FAIL_COUNT}" -eq 0 ]]; then
-        echo "**Result: VERIFIED.** No PII pattern leaked into upstream-bound bytes for any prompt."
+        echo "**Result: VERIFIED.** Every prompt produced the expected wire outcome:"
+        echo "BLOCK prompts never reached the upstream; TOKENIZE / MASK prompts"
+        echo "reached the upstream with the literal PII absent and the substitution"
+        echo "shape present."
     else
-        echo "**Result: NOT VERIFIED.** ${FAIL_COUNT} of ${PROMPT_COUNT} prompts produced upstream leakage."
-        echo
-        echo "Inspect the per-flow capture files listed above to see what reached the wire."
+        echo "**Result: NOT VERIFIED.** ${FAIL_COUNT} of ${PROMPT_COUNT} prompts produced"
+        echo "an unexpected wire outcome. See per-prompt verdict details above."
     fi
 } >> "${SUMMARY}"
 

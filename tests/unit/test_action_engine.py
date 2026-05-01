@@ -190,6 +190,50 @@ def test_allow_for_uncategorized_does_not_pollute_audit_or_rewrite() -> None:
     assert result.audit == ()
 
 
+def test_identical_spans_from_two_detectors_dedupe(
+) -> None:
+    """When two detectors emit IDENTICAL (start, end, category) spans
+    (e.g. regex AND presidio both flag the same IP), the rewrite must
+    produce one substitution, not two. DEC-023.
+
+    Two-substitution behavior corrupted the wire (the second sub's
+    text[end:] index referred to the post-first-sub text, splicing
+    the second token onto the middle of the first token).
+    """
+    policy = Policy(
+        name="t",
+        rules=[PolicyRule(category=Category.INTERNAL_IP, action=Action.TOKENIZE)],
+    )
+    engine = ActionEngine(policy)
+    text = "host is 10.0.0.5 today"
+    # Two detections at the same span from two detector sources.
+    det_regex = _det(Category.INTERNAL_IP, start=8, end=16, text="10.0.0.5")
+    det_presidio = Detection(
+        category=Category.INTERNAL_IP,
+        start=8,
+        end=16,
+        matched_text="10.0.0.5",
+        confidence=0.95,
+        detector="presidio:IP_ADDRESS",
+    )
+    result = engine.apply(text, [det_regex, det_presidio], _ctx())
+    # Exactly one TOKENIZE substitution; rewritten text contains the
+    # token once and not corrupt suffix-splice patterns like
+    # "[INTERNAL_IP_xxx]xxx]".
+    import re as _re
+
+    tokens = _re.findall(r"\[INTERNAL_IP_[a-f0-9]{16,}\]", result.rewritten_text)
+    assert len(tokens) == 1, (
+        f"expected 1 token, got {len(tokens)} in {result.rewritten_text!r}"
+    )
+    # No corrupt-splice pattern.
+    assert "]IP_" not in result.rewritten_text, (
+        f"DEC-023 corruption pattern in output: {result.rewritten_text!r}"
+    )
+    # Original IP gone.
+    assert "10.0.0.5" not in result.rewritten_text
+
+
 def test_overlapping_spans_outer_wins() -> None:
     """A JWT also matches the secret category. The outer (longer) span wins."""
     policy = Policy(

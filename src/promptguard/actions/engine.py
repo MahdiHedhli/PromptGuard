@@ -302,27 +302,41 @@ class ActionEngine:
 def _select_outer_spans(
     rewrites: list[tuple[Detection, str]],
 ) -> list[tuple[Detection, str]]:
-    """Drop spans that are contained inside another span; keep the outer.
+    """Pick a non-overlapping subset of spans: longest-first, drop any
+    span that overlaps an already-kept one (DEC-023).
 
-    Two spans (a_start, a_end) and (b_start, b_end) "contain" b in a iff
-    a_start <= b_start and a_end >= b_end and (a_start, a_end) != (b_start, b_end).
-    Identical spans are kept once (first occurrence wins).
+    Two spans overlap iff `a.start < b.end and b.start < a.end`. Sequential
+    text-mutation rewrite (right-to-left) only produces correct output when
+    spans are disjoint; any overlap (identical, contained, or partial)
+    causes the second substitution's text-slice indices to refer to the
+    already-mutated text, splicing one substitution onto the middle of
+    another. The visible bug surfaced when regex and presidio both flagged
+    the same IP, and again when OPF emitted two adjacent spans for a
+    single email.
+
+    Selection: sort by (length DESC, confidence DESC), then iterate keeping
+    a span only if it does not overlap any already-kept span. This:
+      * preserves the existing "outer span wins" behavior (the longest
+        span is processed first; anything contained inside it overlaps
+        and gets dropped);
+      * deduplicates identical or near-identical detections from multiple
+        detector layers (the first one in sort order is kept, the others
+        overlap with it and are dropped);
+      * gracefully handles the "two adjacent fragments from one detector"
+        pathology by keeping the longest contiguous span available, even
+        if that means dropping shorter adjacent fragments.
     """
     sorted_rewrites = sorted(
         rewrites,
-        key=lambda dr: (dr[0].start, -(dr[0].end - dr[0].start)),
+        key=lambda dr: (-(dr[0].end - dr[0].start), -dr[0].confidence),
     )
     kept: list[tuple[Detection, str]] = []
     for d, replacement in sorted_rewrites:
-        contained = False
+        overlap = False
         for k_d, _ in kept:
-            if (
-                k_d.start <= d.start
-                and k_d.end >= d.end
-                and (k_d.start, k_d.end) != (d.start, d.end)
-            ):
-                contained = True
+            if k_d.start < d.end and d.start < k_d.end:
+                overlap = True
                 break
-        if not contained:
+        if not overlap:
             kept.append((d, replacement))
     return kept
