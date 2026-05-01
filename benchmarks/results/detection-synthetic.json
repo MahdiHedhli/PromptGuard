@@ -1,0 +1,81 @@
+{
+  "configurations": {
+    "regex_only": {
+      "elapsed_per_example_ms": 0.158,
+      "elapsed_total_s": 0.035,
+      "metrics": {
+        "cloud_api_key": {
+          "f1": 1.0,
+          "fn": 0,
+          "fp": 0,
+          "precision": 1.0,
+          "recall": 1.0,
+          "tp": 20
+        },
+        "database_url": {
+          "f1": 1.0,
+          "fn": 0,
+          "fp": 0,
+          "precision": 1.0,
+          "recall": 1.0,
+          "tp": 20
+        },
+        "domain": {
+          "f1": 0.5,
+          "fn": 0,
+          "fp": 40,
+          "precision": 0.333,
+          "recall": 1.0,
+          "tp": 20
+        },
+        "email": {
+          "f1": 0.667,
+          "fn": 0,
+          "fp": 20,
+          "precision": 0.5,
+          "recall": 1.0,
+          "tp": 20
+        },
+        "internal_ip": {
+          "f1": 1.0,
+          "fn": 0,
+          "fp": 0,
+          "precision": 1.0,
+          "recall": 1.0,
+          "tp": 20
+        },
+        "jwt": {
+          "f1": 1.0,
+          "fn": 0,
+          "fp": 0,
+          "precision": 1.0,
+          "recall": 1.0,
+          "tp": 20
+        },
+        "private_key": {
+          "f1": 1.0,
+          "fn": 0,
+          "fp": 0,
+          "precision": 1.0,
+          "recall": 1.0,
+          "tp": 20
+        },
+        "secret": {
+          "f1": 1.0,
+          "fn": 0,
+          "fp": 0,
+          "precision": 1.0,
+          "recall": 1.0,
+          "tp": 20
+        }
+      }
+    }
+  },
+  "corpus": {
+    "name": "promptguard-synthetic-v1",
+    "negative_examples": 60,
+    "positive_examples": 160,
+    "size": 220
+  },
+  "notes": "OPF and Presidio detectors require running services and are benchmarked in a separate matrix when the docker stack is up. Layered numbers (regex+OPF+Presidio) come from that matrix; this file isolates the regex layer for the in-process baseline."
+}
