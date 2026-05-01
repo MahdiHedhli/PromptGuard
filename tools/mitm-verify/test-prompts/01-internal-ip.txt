@@ -1,0 +1,14 @@
+# Test prompt 01: internal IP (TOKENIZE under default policy)
+#
+# Expected behavior:
+#   - PromptGuard pre-call hook detects 10.0.13.42 as internal_ip
+#   - Outbound to upstream contains [INTERNAL_IP_<16-hex>], NOT 10.0.13.42
+#   - User sees the original IP if the upstream LLM echoes the token
+#
+# What this verifies:
+#   - regex layer recognizes RFC-1918 IPv4 addresses
+#   - tokenize action produces a random per-conversation token
+#   - the token format matches DEC-012 ([INTERNAL_IP_<16-hex>])
+#
+# DO NOT change to a real IP from any production system.
+What does this configuration look like? server_ip = 10.0.13.42, port = 8443

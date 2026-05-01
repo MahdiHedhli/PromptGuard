@@ -259,6 +259,41 @@ def test_sse_malformed_json_passes_through() -> None:
     assert b"{not json" in out
 
 
+def test_restore_sse_blob_preserves_index_field() -> None:
+    """When upstream emits text deltas at index != 0 (because earlier
+    blocks were thinking / tool_use), the rebuild must preserve the
+    original index. claude CLI v2.x produces the "Content block is not
+    a text block" error if the rebuilt event's index does not match the
+    matching content_block_start. See DEC-020.
+    """
+    from promptguard.proxy.streaming import restore_sse_blob
+
+    tm = TokenMap()
+    tok = tm.issue("c", Category.EMAIL, "alice@example.com")
+    sse = (
+        # message_start at index=0 covers a thinking block (typical for
+        # claude CLI extended-thinking; we just make sure rebuild
+        # doesn't touch index).
+        b'event: message_start\n'
+        b'data: {"type":"message_start","message":{"id":"msg_x"}}\n\n'
+        b'event: content_block_start\n'
+        b'data: {"type":"content_block_start","index":1,"content_block":{"type":"text","text":""}}\n\n'
+        b'event: content_block_delta\n'
+        b'data: {"type":"content_block_delta","index":1,"delta":{"type":"text_delta","text":"Hi "}}\n\n'
+        b'event: content_block_delta\n'
+        b'data: {"type":"content_block_delta","index":1,"delta":{"type":"text_delta","text":"' + tok.encode() + b'"}}\n\n'
+        b'event: content_block_stop\n'
+        b'data: {"type":"content_block_stop","index":1}\n\n'
+    )
+    out = restore_sse_blob(tm, "c", sse)
+    decoded = out.decode("utf-8")
+    # All content_block_delta events must keep index=1.
+    assert '"index":0' not in decoded, f"index 0 leaked into rebuild: {decoded}"
+    assert decoded.count('"index":1') >= 3
+    # The restored content is present.
+    assert "alice@example.com" in decoded
+
+
 def test_sse_walks_nested_strings() -> None:
     """Must restore tokens inside nested string fields, not just delta.text."""
     tm = TokenMap()

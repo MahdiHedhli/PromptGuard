@@ -1,0 +1,14 @@
+# Test prompt 02: email address (MASK under default policy)
+#
+# Expected behavior:
+#   - PromptGuard pre-call hook detects alice@internal-corp.example as email
+#   - Outbound to upstream contains [EMAIL_REDACTED], NOT alice@...
+#   - User sees [EMAIL_REDACTED] in the response (one-way mask, no ledger)
+#
+# What this verifies:
+#   - regex layer recognizes email addresses
+#   - mask action produces the static [EMAIL_REDACTED] tag
+#   - threat-model A6 (no token-map ledger for retention-sensitive categories)
+#
+# Email domain `internal-corp.example` is RFC-2606 reserved for examples.
+Send the report to alice@internal-corp.example.

@@ -1,0 +1,74 @@
+# MITM verification overlay (DEC-022).
+#
+# Positions a mitmproxy container between LiteLLM and the upstream
+# provider so the operator can independently verify what bytes leave
+# the host. NOT between the client and LiteLLM: we want to see what
+# PromptGuard sends out, not what the client sent in.
+#
+# Usage:
+#   make -C tools/mitm-verify up      (or)
+#   PROMPTGUARD_LITELLM_PORT=4100 \
+#     docker compose -f docker-compose.yml \
+#                    -f tools/mitm-verify/docker-compose.mitm.yml \
+#                    up -d --wait
+#
+# The overlay:
+#   * Adds a `mitmproxy` service (mitmproxy upstream-proxy mode)
+#   * Mounts ./tools/mitm-verify/addon.py into the container
+#   * Mounts ./local/mitm-captures into the container as /captures
+#   * Persists the auto-generated CA at ./local/mitm-ca/ (gitignored)
+#   * Configures LiteLLM to route outbound HTTPS through the mitmproxy
+#     and trust the mitmproxy CA cert.
+
+services:
+  mitmproxy:
+    image: mitmproxy/mitmproxy:11.0.0
+    container_name: promptguard-mitm
+    command: >
+      mitmdump
+      --listen-port 8080
+      --mode regular
+      --set ssl_insecure=false
+      --set termlog_verbosity=info
+      --set confdir=/mitm-ca
+      -s /addon.py
+    environment:
+      PROMPTGUARD_MITM_CAPTURES_DIR: /captures
+    volumes:
+      - ./tools/mitm-verify/addon.py:/addon.py:ro
+      - ./local/mitm-captures:/captures
+      - ./local/mitm-ca:/mitm-ca
+    ports:
+      - "${PROMPTGUARD_MITM_PORT:-8088}:8080"
+    networks:
+      - promptguard
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /mitm-ca/mitmproxy-ca-cert.pem || exit 1"]
+      interval: 5s
+      timeout: 3s
+      start_period: 30s
+      retries: 12
+
+  litellm:
+    depends_on:
+      mitmproxy:
+        condition: service_healthy
+      presidio-analyzer:
+        condition: service_healthy
+      opf-service:
+        condition: service_healthy
+    environment:
+      # Route outbound traffic via the mitmproxy container.
+      HTTPS_PROXY: http://mitmproxy:8080
+      HTTP_PROXY: http://mitmproxy:8080
+      # Bypass the proxy for localhost (the LiteLLM healthcheck hits
+      # http://localhost:4000/health/liveliness; without NO_PROXY
+      # urllib would route that through mitmproxy too and fail).
+      NO_PROXY: localhost,127.0.0.1,opf-service,presidio-analyzer
+      no_proxy: localhost,127.0.0.1,opf-service,presidio-analyzer
+      # Trust mitmproxy's auto-generated CA. Mounted from the same
+      # volume the mitmproxy container persists it to.
+      SSL_CERT_FILE: /mitm-ca/mitmproxy-ca-cert.pem
+      REQUESTS_CA_BUNDLE: /mitm-ca/mitmproxy-ca-cert.pem
+    volumes:
+      - ./local/mitm-ca:/mitm-ca:ro

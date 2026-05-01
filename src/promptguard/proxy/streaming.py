@@ -312,34 +312,78 @@ def restore_sse_blob(
         # surfaces as "Content block is not a text block".
         return sse_bytes
 
-    # Rebuild: preserve every original event so clients that depend on
-    # the upstream's event sequencing keep working. Place the full
-    # restored text in the FIRST text-delta event; emit each subsequent
-    # text-delta event with empty text. The user-facing concatenation is
-    # the restored value; the event count matches the upstream stream.
+    # Rebuild: mutate the original payload of each text-delta event in
+    # place, swapping ONLY the delta text field. Preserve everything
+    # else: the `event:` header line, the `index` field, the
+    # `delta.type` value, and any sibling fields the upstream may add
+    # in future. Place the full restored text in the FIRST text-delta
+    # event; subsequent text-delta events get empty text. The
+    # user-facing concatenation is the restored value; downstream
+    # parsers see the same event shape and `index` they expect.
     #
-    # Day-3 design originally collapsed all text-delta events into one;
-    # claude CLI v2.x rejects that with "Content block is not a text
-    # block". Preserving event count (with empty text after the first)
-    # threads the needle: tokens spanning events still get restored, and
-    # downstream parsers see the same number of events they would have.
+    # Why preserving `index` matters: claude CLI v2.x sends extended-
+    # thinking requests that produce content blocks at multiple
+    # indexes (a thinking block at index 0, a text block at index 1).
+    # An earlier rebuild that hardcoded `"index": 0` produced text-
+    # delta events at index 0 even when the matching content_block_start
+    # was at a different index, which the CLI parser correctly rejects
+    # with "Content block is not a text block". DEC-020 has the
+    # full investigation.
+    import copy as _copy
+
     replaced_once = False
     rebuilt_events: list[str] = []
-    for raw_event, _payload, is_text in zip(
+    for raw_event, payload, is_text in zip(
         [pe[0] for pe in parsed_events],
         [pe[1] for pe in parsed_events],
         is_text_delta,
         strict=True,
     ):
-        if not is_text:
+        if not is_text or payload is None:
             rebuilt_events.append(raw_event)
             continue
-        if not replaced_once:
-            rebuilt_events.append(_build_anthropic_text_delta_event(restored_text))
-            replaced_once = True
-        else:
-            rebuilt_events.append(_build_anthropic_text_delta_event(""))
+        new_payload = _copy.deepcopy(payload)
+        new_text = restored_text if not replaced_once else ""
+        _replace_delta_text(new_payload, new_text)
+        replaced_once = True
+        rebuilt_events.append(_reencode_event(raw_event, new_payload))
     return "\n\n".join(rebuilt_events).encode("utf-8")
+
+
+def _replace_delta_text(payload: dict, new_text: str) -> None:
+    """In-place: swap delta.text (Anthropic) or choices[0].delta.content
+    (OpenAI) with `new_text`. No-op if neither field is present."""
+    delta = payload.get("delta")
+    if isinstance(delta, dict) and isinstance(delta.get("text"), str):
+        delta["text"] = new_text
+        return
+    choices = payload.get("choices")
+    if isinstance(choices, list) and choices:
+        first = choices[0]
+        if isinstance(first, dict):
+            inner_delta = first.get("delta")
+            if isinstance(inner_delta, dict) and isinstance(
+                inner_delta.get("content"), str
+            ):
+                inner_delta["content"] = new_text
+
+
+def _reencode_event(raw_event: str, new_payload: dict) -> str:
+    """Re-encode an SSE event with `new_payload` replacing the JSON in
+    its `data:` line. Preserves the `event:` header line and any
+    other prefix lines (comments, retry directives) verbatim.
+    """
+    new_data = json.dumps(new_payload, separators=(",", ":"), ensure_ascii=False)
+    out_lines: list[str] = []
+    replaced = False
+    for line in raw_event.split("\n"):
+        if not replaced and (line.startswith("data: ") or line.startswith("data:")):
+            prefix = "data: " if line.startswith("data: ") else "data:"
+            out_lines.append(prefix + new_data)
+            replaced = True
+        else:
+            out_lines.append(line)
+    return "\n".join(out_lines)
 
 
 def _extract_delta_text(payload: object) -> str | None:

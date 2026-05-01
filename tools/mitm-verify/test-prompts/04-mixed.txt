@@ -1,0 +1,17 @@
+# Test prompt 04: mixed PII categories (BLOCK takes precedence)
+#
+# Expected behavior:
+#   - PromptGuard pre-call hook detects the AWS key (cloud_api_key, BLOCK),
+#     the IP (internal_ip, TOKENIZE), and the email (email, MASK).
+#   - BLOCK on cloud_api_key short-circuits enforcement; request never
+#     leaves the host.
+#   - The BLOCK error envelope lists ALL three categories in the violation list
+#     so the operator sees what fired even on the short-circuited path.
+#   - None of the offending values (key, IP, email) appear in any outbound
+#     request body.
+#
+# What this verifies:
+#   - bucket-and-dispatch action engine logic (DEC-008)
+#   - BLOCK error envelope shape with multiple violations
+#   - threat-model A6 invariant: error response does not echo the prompt
+The AWS key AKIAIOSFODNN7EXAMPLE on server 10.0.13.42 needs to be rotated. Confirm by replying to alice@internal-corp.example.

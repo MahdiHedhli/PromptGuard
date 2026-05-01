@@ -13,8 +13,9 @@ services:
     build:
       context: .
       dockerfile: docker/litellm/Dockerfile
-      args:
-        LITELLM_TAG: main-stable
+      # LITELLM_DIGEST pinned in docker/litellm/Dockerfile (Day-10
+      # packaging polish, DEC-021). To override during dev, set
+      # the build arg here.
     image: promptguard-litellm:dev
     container_name: promptguard-litellm
     ports:

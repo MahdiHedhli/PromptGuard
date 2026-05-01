@@ -1,0 +1,17 @@
+# Test prompt 06: database connection URL (BLOCK under default policy)
+#
+# Expected behavior:
+#   - PromptGuard pre-call hook detects the postgres:// URL as database_url
+#   - The request is BLOCKed before reaching upstream
+#   - The full URL (including the user:pass@host:port/db structure) never
+#     appears in any outbound request body
+#   - The BLOCK error envelope does not echo the URL
+#
+# What this verifies:
+#   - regex layer recognizes scheme://user:pass@host:port/db patterns
+#     across postgres / mysql / mongodb / redis schemes
+#   - block action prevents request forwarding for connection strings
+#
+# The credentials below are clearly synthetic ("user"/"pass") and the host
+# is RFC-2606 reserved (`db.internal` is a generic non-routable form).
+The connection string is postgres://user:pass@db.internal:5432/prod and the app keeps timing out.

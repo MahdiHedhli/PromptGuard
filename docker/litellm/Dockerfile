@@ -10,8 +10,14 @@
 #   /app/policies/                        sample policies (mounted in compose)
 #   site-packages/promptguard/            installed package
 
-ARG LITELLM_TAG=main-stable
-FROM ghcr.io/berriai/litellm:${LITELLM_TAG}
+# Digest pin (Day-10 packaging polish).
+# Pinning to a specific image digest rather than a floating `main-stable`
+# tag so the v1 release behavior is reproducible. Operators can verify
+# they have the same image with `docker image inspect <id> --format '{{.RepoDigests}}'`.
+# To bump: `docker pull ghcr.io/berriai/litellm:main-stable` and replace
+# the digest below with the resolved one from `docker images --digests`.
+ARG LITELLM_DIGEST=sha256:6c82d338a60e7b273ae46bf1d8db814d2856ae010f96c44eeadde574d3893f76
+FROM ghcr.io/berriai/litellm@${LITELLM_DIGEST}
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \

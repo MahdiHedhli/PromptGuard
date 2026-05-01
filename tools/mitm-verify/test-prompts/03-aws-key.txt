@@ -1,0 +1,16 @@
+# Test prompt 03: AWS access key (BLOCK under default policy)
+#
+# Expected behavior:
+#   - PromptGuard pre-call hook detects AKIAIOSFODNN7EXAMPLE as cloud_api_key
+#   - The request is BLOCKed before reaching upstream
+#   - Client receives HTTP 400 with the PromptGuard error envelope
+#   - The AWS key string never appears in any outbound request body
+#   - The AWS key string never appears in the BLOCK error response
+#
+# What this verifies:
+#   - regex layer recognizes AWS AKIA-format access keys
+#   - block action prevents request forwarding
+#   - error envelope (DEC-006 + DEC-010) does not echo the offending text
+#
+# AKIAIOSFODNN7EXAMPLE is AWS's documented example access key (not real).
+I think my AWS key AKIAIOSFODNN7EXAMPLE got leaked, help me rotate it.

@@ -3,6 +3,10 @@ Copyright 2026 Mahdi Hedhli / 42 Holdings
 
 This product includes software developed at 42 Holdings.
 
+================================================================================
+Regex pattern attribution
+================================================================================
+
 This product contains, or is derived from, regular-expression patterns
 sourced from the following projects, used under their respective licenses
 (both compatible with Apache 2.0):
@@ -12,4 +16,77 @@ sourced from the following projects, used under their respective licenses
   - detect-secrets (https://github.com/Yelp/detect-secrets), Apache 2.0 License,
     Copyright (c) 2018 Yelp.
 
-Pattern attribution is preserved per-pattern in src/promptguard/detectors/regex_patterns.py.
+Per-pattern attribution is preserved in src/promptguard/detectors/regex_patterns.py
+via the `source` field on each `PatternSpec`.
+
+================================================================================
+Detection-stage references
+================================================================================
+
+PromptGuard's multi-stage detection pipeline integrates with the following
+external projects. PromptGuard does not redistribute their code; it calls
+them at runtime via documented interfaces.
+
+  - OpenAI Privacy Filter (https://github.com/openai/privacy-filter), Apache 2.0,
+    Copyright (c) 2026 OpenAI. PromptGuard runs OPF as a separate FastAPI
+    container that wraps the HuggingFace `openai/privacy-filter` model. See
+    src/promptguard/services/opf_service/.
+  - Microsoft Presidio (https://github.com/microsoft/presidio), MIT License,
+    Copyright (c) Microsoft Corporation. PromptGuard talks to the Presidio
+    analyzer over HTTP. See src/promptguard/detectors/presidio.py.
+
+================================================================================
+Benchmark-corpus references (cited, not redistributed)
+================================================================================
+
+PromptGuard's benchmarks reference the following corpora. The corpora
+themselves are not included in this repository.
+
+  - AI4Privacy PII-Masking-300k (https://huggingface.co/datasets/ai4privacy/pii-masking-300k).
+    License: "other" (academic evaluation use without separate licensing,
+    commercial training requires licensing). PromptGuard cites this corpus
+    in docs/benchmarks.md and research-notes.md for methodology grounding;
+    no corpus content is redistributed here.
+  - GitHub Issues Secrets Benchmark (https://arxiv.org/abs/2410.23657).
+    Benchmark and methodology cited; corpus not redistributed.
+  - Tonic.ai OpenAI Privacy Filter benchmark
+    (https://www.tonic.ai/blog/benchmarking-openai-privacy-filter-pii-detection).
+    Numbers cited as the external sanity check on OPF operating points;
+    no benchmark content redistributed.
+
+================================================================================
+Reference-baseline citation
+================================================================================
+
+PromptGuard's blog post and methodology compare against the LiteLLM-native
+pattern-matching approach described by:
+
+  Rama (Muh. Fani Akbar), "Masking PII Or Sensitive Data Before Sending to
+  AI Using LiteLLM," 2026-04-24,
+  https://labs.secengai.com/p/masking-pii-or-sensitive-data-before-sending-to-ai-using-litellm
+
+The comparison is conceptual; PromptGuard does not redistribute code or
+content from that post.
+
+================================================================================
+Runtime dependencies
+================================================================================
+
+PromptGuard is licensed under Apache 2.0. Its runtime dependencies are also
+under permissive licenses compatible with Apache 2.0. Key direct dependencies
+and their licenses (the full lock is in uv.lock):
+
+  - LiteLLM (MIT)
+  - Microsoft Presidio Analyzer (MIT)
+  - HuggingFace Transformers (Apache 2.0)
+  - PyTorch (BSD-3)
+  - FastAPI (MIT)
+  - Pydantic (MIT)
+  - PyYAML (MIT)
+  - httpx (BSD-3)
+  - structlog (Apache 2.0 / MIT)
+
+The CLAUDE.md project quality bar requires "Apache 2.0-compatible
+dependencies only," which we have audited at each release. Reject GPL,
+AGPL, source-available, or custom-restrictive licenses on any new dep
+(see CLAUDE.md "Code" section).

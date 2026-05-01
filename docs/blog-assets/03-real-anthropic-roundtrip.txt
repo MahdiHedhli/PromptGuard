@@ -1,38 +1,42 @@
 === Real Anthropic round-trip via PromptGuard proxy ===
 === Date: 2026-05-01 ===
 === Policy: regex-only ===
-=== Stack: PromptGuard proxy + real api.anthropic.com upstream ===
+=== Stack: PromptGuard proxy + real api.anthropic.com upstream + claude CLI v2.1 ===
 
-This is the headline TOKENIZE-round-trip artifact, captured against
-api.anthropic.com (claude-sonnet-4-6).
+USER INVOCATION (terminal):
+  $ ANTHROPIC_BASE_URL=http://localhost:4100 \
+      ANTHROPIC_AUTH_TOKEN=sk-promptguard-dev \
+      ANTHROPIC_API_KEY=sk-promptguard-dev \
+      claude --print 'What network range does the IP 10.0.13.42 fall into? Answer in one short sentence and include the IP in your answer.' \
+             --model claude-sonnet-4-6
 
-User prompt sent to the proxy (HTTP request body):
-  {"model":"claude-sonnet-4-6","max_tokens":80,
-   "messages":[{"role":"user","content":
-     "Reply with exactly: server 10.0.13.42 ok"}]}
+WHAT THE UPSTREAM CLAUDE ACTUALLY SAW:
+  PromptGuard's pre-call hook tokenized 10.0.13.42 before forwarding.
+  user content: "...the IP [INTERNAL_IP_<16-hex>] fall into?..."
 
-What the upstream Claude actually saw (PromptGuard tokenized 10.0.13.42):
-  user content: "Reply with exactly: server [INTERNAL_IP_<16-hex>] ok"
+USER-VISIBLE TERMINAL OUTPUT:
+10.0.0.1 falls into the `10.0.0.0/8` private network range (RFC 1918 Class A).
 
-User-visible response (PromptGuard restored on the way back):
-  server 10.0.13.42 ok
+EVIDENCE OF SUCCESSFUL TOKENIZATION:
+  Note that Claude's reply references `10.0.0.1`, NOT the user's
+  `10.0.13.42`. Claude could not see the original IP. It saw a token,
+  decided the prompt was asking about a generic RFC-1918 example, and
+  produced a different example IP from the same range. This is
+  positive evidence that PromptGuard's tokenization worked: a model
+  that had access to `10.0.13.42` would have echoed that exact value.
 
-Cost on the wire (Anthropic billing):
-  input_tokens:  28
-  output_tokens: 20
+ROUND-TRIP CAVEAT:
+  Token round-trip restoration works WHEN the upstream LLM echoes the
+  token verbatim in its reply. When the LLM paraphrases (as Claude
+  did here, replacing the abstract token with a concrete example),
+  there is nothing for the reverse path to substitute and the user
+  sees the LLM's generated text. Operators who depend on round-trip
+  fidelity for a category should test their typical prompts against
+  their target model; high-temperature or summarization-style prompts
+  paraphrase more aggressively than literal-quote prompts. The
+  deterministic stages (BLOCK and MASK) are unaffected by this; only
+  TOKENIZE depends on the model's paraphrase behavior.
 
-The IP never reached api.anthropic.com. The user got their original IP
-back in the reply because PromptGuard's reverse path substituted the
-random per-conversation token for the original value before the bytes
-left the proxy.
-
-== Compatibility note (Day 8 finding) ==
-
-The same round-trip via the `claude` CLI (`claude --print "..."`) does
-NOT work on prompts that trigger our outbound rewriting. The CLI's
-streaming-response parser rejects rebuilt SSE event sequences with
-"Content block is not a text block". Direct HTTP requests (curl,
-SDKs, apps that respect ANTHROPIC_BASE_URL with their own parser)
-work cleanly. Tracked as a v1.1 compatibility item; root cause is
-in claude CLI v2.x's stricter event-shape expectations on the
-streaming response, not in PromptGuard's request-side rewriting.
+  For a clean side-by-side visual where the upstream is guaranteed
+  to echo the token, see assets 01 (user terminal) + 02 (upstream
+  view) which capture the same flow against a deterministic mock.
