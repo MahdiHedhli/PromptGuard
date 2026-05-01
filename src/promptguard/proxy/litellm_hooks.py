@@ -100,19 +100,44 @@ class PromptGuardHook:
         PROMPTGUARD_OPF_URL:     OPF service URL
         PROMPTGUARD_PRESIDIO_URL: Presidio analyzer URL
         PROMPTGUARD_POLICY_RELOAD_INTERVAL_S: float seconds, 0 disables.
+        PROMPTGUARD_AUDIT_LOG_PATH: file path for the JSONL audit log.
+            Default ./promptguard-audit.log. Created if missing.
         """
+        from promptguard.audit import AuditWriter, compute_policy_hash, package_version
         from promptguard.policies import build_policy_adapter_from_env
 
         adapter = build_policy_adapter_from_env()
         policy = adapter.load()
         pipeline = build_pipeline_from_policy(policy)
-        engine = ActionEngine(policy)
+        # Audit writer: opens the file at startup; engine writes to it
+        # in audit-only mode. Even when audit-only is False, the writer
+        # is wired up so policy hot-reload (DEC-016) into audit-only
+        # works without a restart.
+        audit_log_path = os.environ.get(
+            "PROMPTGUARD_AUDIT_LOG_PATH", "./promptguard-audit.log"
+        )
+        audit_writer = AuditWriter(audit_log_path)
+        # policy_hash is computed from the source file the adapter
+        # loaded from. The factory's path env var is the canonical
+        # source for adapters that accept a file path.
+        policy_file = os.environ.get(
+            "PROMPTGUARD_POLICY_FILE", "/app/policies/default.yaml"
+        )
+        engine = ActionEngine(
+            policy,
+            audit_writer=audit_writer,
+            pipeline_version=package_version(),
+            policy_hash=compute_policy_hash(policy_file),
+        )
         logger.info(
-            "PromptGuard hook initialized: source=%s policy=%s v=%s detectors=%s",
+            "PromptGuard hook initialized: source=%s policy=%s v=%s detectors=%s "
+            "audit_only=%s audit_log=%s",
             adapter.name,
             policy.name,
             policy.version,
             [d.name for d in pipeline.detectors],
+            policy.audit_only,
+            audit_log_path,
         )
         hook = cls(policy, pipeline, engine)
         # Hot-reload is opt-in via env. Off by default; production

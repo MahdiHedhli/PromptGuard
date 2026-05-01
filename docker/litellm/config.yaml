@@ -12,6 +12,18 @@ model_list:
     litellm_params:
       model: anthropic/claude-opus-4-7
       api_key: os.environ/ANTHROPIC_API_KEY
+  # claude CLI v2.x uses haiku-4-5 for side traffic (background
+  # summarization etc) even when the user asked for sonnet. Without
+  # this entry the side calls fail and the CLI surfaces a confusing
+  # "Content block is not a text block" error.
+  - model_name: claude-haiku-4-5
+    litellm_params:
+      model: anthropic/claude-haiku-4-5
+      api_key: os.environ/ANTHROPIC_API_KEY
+  - model_name: claude-haiku-4-5-20251001
+    litellm_params:
+      model: anthropic/claude-haiku-4-5-20251001
+      api_key: os.environ/ANTHROPIC_API_KEY
   - model_name: gpt-4o-mini
     litellm_params:
       model: openai/gpt-4o-mini

@@ -303,11 +303,26 @@ def restore_sse_blob(
         return sse_bytes
 
     restored_text = token_map.restore(conversation_id, accumulated_text)
+    if restored_text == accumulated_text:
+        # No tokens fired in this conversation's map; the upstream stream
+        # is already correct. Pass through unmodified rather than rebuild,
+        # so we do NOT collapse multiple delta events into one. Some
+        # clients (notably claude CLI v2.x) parse the response stream in
+        # a way that depends on the upstream's event sequencing; collapsing
+        # surfaces as "Content block is not a text block".
+        return sse_bytes
 
-    # Rebuild: keep non-text events as-is; replace the FIRST text-delta event
-    # with one carrying the full restored text; drop the rest of the
-    # text-delta events. This collapses streaming into one delta event but
-    # preserves the surrounding lifecycle events (message_start, _stop).
+    # Rebuild: preserve every original event so clients that depend on
+    # the upstream's event sequencing keep working. Place the full
+    # restored text in the FIRST text-delta event; emit each subsequent
+    # text-delta event with empty text. The user-facing concatenation is
+    # the restored value; the event count matches the upstream stream.
+    #
+    # Day-3 design originally collapsed all text-delta events into one;
+    # claude CLI v2.x rejects that with "Content block is not a text
+    # block". Preserving event count (with empty text after the first)
+    # threads the needle: tokens spanning events still get restored, and
+    # downstream parsers see the same number of events they would have.
     replaced_once = False
     rebuilt_events: list[str] = []
     for raw_event, _payload, is_text in zip(
@@ -322,7 +337,8 @@ def restore_sse_blob(
         if not replaced_once:
             rebuilt_events.append(_build_anthropic_text_delta_event(restored_text))
             replaced_once = True
-        # else drop
+        else:
+            rebuilt_events.append(_build_anthropic_text_delta_event(""))
     return "\n\n".join(rebuilt_events).encode("utf-8")
 
 

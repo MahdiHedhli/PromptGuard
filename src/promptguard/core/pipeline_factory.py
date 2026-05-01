@@ -91,12 +91,15 @@ def build_pipeline_from_policy(
         detectors.append(PresidioDetector(base_url=presidio_url))
 
     if policy.detectors.llm_judge.enabled:
-        # The LLM judge is locked OFF in v1 (research-notes Decision 6).
-        # If a policy enables it, fail loud rather than silently degrade.
-        raise DetectorUnavailableError(
-            "LLM judge is enabled in policy but the LLMJudgeDetector adapter "
-            "ships in v1.1. Set detectors.llm_judge.enabled = false to start."
-        )
+        # Day 8 wires the real LLMJudgeDetector. Operators must run an
+        # Ollama server reachable at PROMPTGUARD_OLLAMA_URL; the adapter
+        # itself is tolerant (timeouts and HTTP errors return zero
+        # detections) so the pipeline does not hard-fail on transient
+        # Ollama issues. We construct unconditionally; runtime tolerance
+        # handles availability.
+        from promptguard.detectors.llm_judge import LLMJudgeDetector
+
+        detectors.append(LLMJudgeDetector())
 
     if not detectors:
         raise DetectorUnavailableError(

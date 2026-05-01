@@ -28,6 +28,7 @@ from promptguard.actions.base import (
 from promptguard.actions.block import BlockAction
 from promptguard.actions.mask import MaskAction
 from promptguard.actions.tokenize import TokenizeAction, TokenMap
+from promptguard.audit import AuditEvent, AuditWriter, now_iso8601_utc
 from promptguard.core.detection import Detection
 from promptguard.core.policy import Action, Policy
 
@@ -45,12 +46,23 @@ class EngineResult:
 
 
 class ActionEngine:
-    def __init__(self, policy: Policy, token_map: TokenMap | None = None) -> None:
+    def __init__(
+        self,
+        policy: Policy,
+        token_map: TokenMap | None = None,
+        *,
+        audit_writer: AuditWriter | None = None,
+        pipeline_version: str = "",
+        policy_hash: str = "",
+    ) -> None:
         self._policy = policy
         self._token_map = token_map or TokenMap()
         self._block = BlockAction()
         self._mask = MaskAction()
         self._tokenize = TokenizeAction(self._token_map)
+        self._audit_writer = audit_writer
+        self._pipeline_version = pipeline_version
+        self._policy_hash = policy_hash
 
     @property
     def policy(self) -> Policy:
@@ -59,6 +71,10 @@ class ActionEngine:
     @property
     def token_map(self) -> TokenMap:
         return self._token_map
+
+    @property
+    def audit_writer(self) -> AuditWriter | None:
+        return self._audit_writer
 
     def apply(
         self,
@@ -81,6 +97,16 @@ class ActionEngine:
             elif action == Action.TOKENIZE:
                 bucket_tokenize.append(d)
             # ALLOW falls through; not recorded.
+
+        # Audit-only mode: compute would-be decisions, emit audit events,
+        # but do NOT block, mask, or tokenize. The original text is
+        # forwarded to the upstream unchanged. Operators use this mode
+        # during policy bring-up to see what would have fired without
+        # disrupting the user.
+        if self._policy.audit_only:
+            return self._apply_audit_only(
+                text, bucket_block, bucket_mask, bucket_tokenize, context
+            )
 
         if bucket_block:
             block_result = self._block.apply(text, bucket_block, context)
@@ -144,6 +170,65 @@ class ActionEngine:
             blocked=False,
             rewritten_text=rewritten,
             audit=tuple(audit),
+            violations=(),
+            policy_name=self._policy.name,
+            policy_version=self._policy.version,
+        )
+
+    def _apply_audit_only(
+        self,
+        text: str,
+        bucket_block: list[Detection],
+        bucket_mask: list[Detection],
+        bucket_tokenize: list[Detection],
+        context: ActionContext,
+    ) -> EngineResult:
+        """Audit-only path: compute decisions, emit events, do not rewrite.
+
+        The text returned equals the input text. `blocked` is always
+        False (audit-only never blocks). The audit log gets one event
+        per non-ALLOW detection, with `would_have_been_action` recording
+        what the engine would have done.
+        """
+        audit_entries: list[AuditEntry] = []
+        for buckets, action_name in (
+            (bucket_block, BlockAction.name),
+            (bucket_mask, MaskAction.name),
+            (bucket_tokenize, TokenizeAction.name),
+        ):
+            for d in buckets:
+                audit_entries.append(
+                    AuditEntry(
+                        category=d.category.value,
+                        detector=d.detector,
+                        action=action_name,
+                        start=d.start,
+                        end=d.end,
+                        confidence=d.confidence,
+                        replacement="",
+                    )
+                )
+                if self._audit_writer is not None:
+                    self._audit_writer.write(
+                        AuditEvent(
+                            timestamp=now_iso8601_utc(),
+                            conversation_id=context.conversation_id,
+                            request_id=context.request_id,
+                            rule=f"{d.category.value} -> {action_name}",
+                            detector=d.detector,
+                            category=d.category.value,
+                            span_offset=d.start,
+                            span_length=d.end - d.start,
+                            would_have_been_action=action_name,
+                            pipeline_version=self._pipeline_version,
+                            policy_hash=self._policy_hash,
+                            confidence=round(d.confidence, 4),
+                        )
+                    )
+        return EngineResult(
+            blocked=False,
+            rewritten_text=text,
+            audit=tuple(audit_entries),
             violations=(),
             policy_name=self._policy.name,
             policy_version=self._policy.version,

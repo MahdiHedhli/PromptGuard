@@ -194,12 +194,15 @@ def test_aclose_default_no_op_on_base() -> None:
 # ------------ LLM judge skeleton --------------------------------
 
 
-def test_llm_judge_refuses_instantiation_at_v1() -> None:
-    with pytest.raises(LLMJudgeNotImplemented) as exc_info:
-        LLMJudgeDetector()
-    msg = str(exc_info.value)
-    assert "skeleton" in msg.lower() or "not implemented" in msg.lower()
-    assert "detectors.llm_judge.enabled = false" in msg
+def test_llm_judge_instantiates_with_documented_defaults() -> None:
+    """Day 8 wires the real implementation. Construction succeeds; the
+    adapter is tolerant of Ollama being unreachable at request time
+    (returns zero detections + warning, does not fail the pipeline)."""
+    judge = LLMJudgeDetector()
+    assert judge.name == "llm_judge"
+    # The legacy stub class still exports under the same name for
+    # callers that imported it before Day 8.
+    assert issubclass(LLMJudgeNotImplemented, NotImplementedError)
 
 
 # ------------ Detection produced by every adapter conforms ----

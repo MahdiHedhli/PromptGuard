@@ -1,0 +1,18 @@
+# Test-only policy: no rules => everything ALLOW => no rewrites,
+# no reverse path. Used to isolate whether a problem is upstream or
+# in PromptGuard's rewrite pipeline.
+name: passthrough-test
+version: "1"
+audit_only: false
+
+detectors:
+  regex:
+    enabled: true
+  opf:
+    enabled: false
+  presidio:
+    enabled: false
+  llm_judge:
+    enabled: false
+
+rules: []

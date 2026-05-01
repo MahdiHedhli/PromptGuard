@@ -85,7 +85,12 @@ def test_pipeline_factory_zero_detectors_raises() -> None:
     assert "zero detectors" in str(exc_info.value).lower()
 
 
-def test_pipeline_factory_llm_judge_enabled_raises_v1() -> None:
+def test_pipeline_factory_llm_judge_enabled_constructs_judge_at_v1() -> None:
+    """Day 8: enabling llm_judge constructs the LLMJudgeDetector. The
+    adapter is tolerant of Ollama being unreachable at request time
+    (timeout / HTTP error returns zero detections, does not fail the
+    pipeline), so the factory does not need a runtime readiness probe
+    like it does for OPF."""
     policy = Policy(
         name="t",
         detectors=DetectorConfig(
@@ -95,7 +100,7 @@ def test_pipeline_factory_llm_judge_enabled_raises_v1() -> None:
             llm_judge=DetectorToggle(enabled=True),
         ),
     )
-    with pytest.raises(DetectorUnavailableError) as exc_info:
-        build_pipeline_from_policy(policy, skip_opf_readiness_check=True)
-    assert "LLM judge" in str(exc_info.value)
-    assert "v1.1" in str(exc_info.value)
+    pipeline = build_pipeline_from_policy(policy, skip_opf_readiness_check=True)
+    names = [d.name for d in pipeline.detectors]
+    assert "llm_judge" in names
+    assert "regex" in names
