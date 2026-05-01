@@ -25,3 +25,8 @@ litellm_settings:
 
 general_settings:
   master_key: os.environ/LITELLM_MASTER_KEY
+  # DEC-015: PromptGuard does not use LiteLLM's spend tracking, virtual keys,
+  # or audit DB. The /v1/messages?beta=true route taken by recent claude
+  # CLI versions otherwise hard-fails at the auth layer with
+  # "No connected db". Allow proxy operation without a backing DB.
+  allow_requests_on_db_unavailable: true

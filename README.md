@@ -26,7 +26,16 @@ When a detector fires, a per-pattern policy decides what happens:
 ```bash
 git clone https://github.com/MahdiHedhli/PromptGuard
 cd PromptGuard
-docker compose up -d
+
+# Provide upstream API keys. ANTHROPIC_API_KEY enables claude-* models;
+# OPENAI_API_KEY enables gpt-* models. .env is gitignored.
+cp .env.example .env
+$EDITOR .env
+
+# Bring up the proxy. First boot downloads the OPF model (~3GB) from
+# HuggingFace; expect ~3 minutes. Subsequent boots reuse the cached
+# volume and complete in seconds.
+docker compose up -d --wait
 ```
 
 Point your tools at the local proxy:
@@ -36,7 +45,23 @@ export ANTHROPIC_BASE_URL=http://localhost:4000
 export OPENAI_BASE_URL=http://localhost:4000/v1
 ```
 
-The default policy lives at `policies/default.yaml`. Sample policies for NDA-strict and healthcare-leaning configurations are in the same directory.
+The default policy lives at [`policies/default.yaml`](policies/default.yaml). Four other shipped policies cover common postures: [`nda-strict.yaml`](policies/nda-strict.yaml), [`healthcare-leaning.yaml`](policies/healthcare-leaning.yaml), [`pentest-engagement.yaml`](policies/pentest-engagement.yaml), and [`regex-only.yaml`](policies/regex-only.yaml). Switch policies with:
+
+```bash
+PROMPTGUARD_POLICY_FILE=/app/policies/nda-strict.yaml docker compose up -d
+```
+
+### Air-gapped or restricted-egress install
+
+If the host cannot reach HuggingFace, run with the regex-only policy. OPF and Presidio are disabled; structured-secret coverage is unchanged but free-form PII coverage is reduced. See [`docs/policy-schema.md`](docs/policy-schema.md) for the trade-offs.
+
+```bash
+PROMPTGUARD_POLICY_FILE=/app/policies/regex-only.yaml docker compose up -d --wait
+```
+
+### Port collisions
+
+If something on the host already binds port 4000 (LiteLLM), 5002 (Presidio), or 8081 (OPF), override with `PROMPTGUARD_LITELLM_PORT`, `PROMPTGUARD_PRESIDIO_PORT`, `PROMPTGUARD_OPF_PORT`. Set them in `.env` to make the override durable.
 
 ## Architecture
 
@@ -49,6 +74,14 @@ Requires Python 3.11+ and [uv](https://docs.astral.sh/uv/).
 ```bash
 uv sync --extra dev
 uv run pytest
+```
+
+For end-to-end integration tests without consuming real Anthropic credits, bring up the included mock-Anthropic upstream:
+
+```bash
+PROMPTGUARD_LITELLM_CONFIG=./docker/litellm/config-mock.yaml \
+    docker compose --profile mock up -d --wait
+uv run pytest -m mock_upstream
 ```
 
 ## License

@@ -31,9 +31,11 @@ COPY server.py /app/server.py
 
 EXPOSE 8081
 
-# Healthcheck reports server-up only. /ready is a separate endpoint
-# operators can poll for model-loaded status.
-HEALTHCHECK --interval=10s --timeout=3s --start-period=10s --retries=3 \
-    CMD curl -fsS http://localhost:8081/health || exit 1
+# Container-level healthcheck targets /ready (model loaded) so the
+# orchestration layer (docker compose up --wait) blocks correctly.
+# start_period covers first-run model download. /health remains a
+# separate endpoint that always returns 200 once FastAPI is up.
+HEALTHCHECK --interval=5s --timeout=3s --start-period=300s --retries=60 \
+    CMD curl -fsS http://localhost:8081/ready || exit 1
 
 CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8081"]

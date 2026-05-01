@@ -73,11 +73,17 @@ services:
     volumes:
       - opf-model-cache:/cache/huggingface
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:8081/health || exit 1"]
-      interval: 10s
-      timeout: 5s
-      start_period: 30s
-      retries: 5
+      # Use /ready (model loaded) so `docker compose up -d --wait` blocks
+      # until the OPF model is actually usable. /health alone is server-up
+      # only, which would let LiteLLM start before OPF could serve detect
+      # requests, triggering the DEC-009 hard-fail. Long start_period
+      # accommodates first-run model download (~3 GB, ~3 min on typical
+      # connections); subsequent boots are seconds via the cached volume.
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8081/ready || exit 1"]
+      interval: 5s
+      timeout: 3s
+      start_period: 300s
+      retries: 60
     networks:
       - promptguard
 

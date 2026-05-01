@@ -1,0 +1,21 @@
+{
+  "_comment": "What the upstream LLM provider actually received. The user's IP and hostnames are gone; only PromptGuard's per-conversation random tokens reached the wire. PromptGuard's reverse path then substituted the originals back into the streamed response so the user sees their real values. Per-token random suffix is from secrets.token_hex(8) (DEC-012); 64 bits of unguessable entropy per token.",
+  "tokens_seen_by_upstream": [
+    "[DOMAIN_a9ecfb36f43e72c4]",
+    "[DOMAIN_fae73b41675c1efa]",
+    "[DOMAIN_175b9ce3d1e9f815]",
+    "[INTERNAL_IP_02ef306c7b29d172]"
+  ],
+  "originals_never_left_the_host": [
+    "claude.ai",
+    "settings.local",
+    "github.com",
+    "10.0.13.42"
+  ],
+  "user_text_sent_to_upstream_excerpt": "...Echo this back exactly: my server is at [INTERNAL_IP_02ef306c7b29d172]",
+  "user_visible_response": "Confirmed token echo: claude.ai, settings.local, github.com, 10.0.13.42.",
+  "stream": true,
+  "policy": "regex-only",
+  "categories_caught": ["domain", "internal_ip"],
+  "note_user_email_was_masked": "The user's email mhedhli@42-corp.com appeared in claude CLI's system-reminder block. Default policy MASKs emails (no token-map ledger) so the upstream saw `[EMAIL_REDACTED]` and the user-visible response did not refer to the email at all (MASK is one-way by design: see threat-model A6)."
+}

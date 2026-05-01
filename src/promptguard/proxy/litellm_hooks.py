@@ -73,6 +73,24 @@ class PromptGuardHook:
     def token_map(self) -> TokenMap:
         return self._engine.token_map
 
+    def _swap_policy(
+        self,
+        policy: Policy,
+        pipeline: DetectionPipeline,
+        engine: ActionEngine,
+    ) -> None:
+        """Atomic policy swap. Used by `PolicyReloader`.
+
+        Python attribute assignment is atomic, so an in-flight
+        `_inspect` that already read `self._pipeline` and `self._engine`
+        finishes with the old references; the next request sees the new
+        ones. The TokenMap is preserved (engine constructed with the
+        existing map by `PolicyReloader`).
+        """
+        self._policy = policy
+        self._pipeline = pipeline
+        self._engine = engine
+
     @classmethod
     def from_env(cls) -> PromptGuardHook:
         """Build a hook from environment variables. Used by the container.
@@ -80,6 +98,7 @@ class PromptGuardHook:
         PROMPTGUARD_POLICY_FILE: path to YAML policy (default policies/default.yaml)
         PROMPTGUARD_OPF_URL:     OPF service URL
         PROMPTGUARD_PRESIDIO_URL: Presidio analyzer URL
+        PROMPTGUARD_POLICY_RELOAD_INTERVAL_S: float seconds, 0 disables.
         """
         policy_file = os.environ.get(
             "PROMPTGUARD_POLICY_FILE", "/app/policies/default.yaml"
@@ -93,7 +112,16 @@ class PromptGuardHook:
             policy.version,
             [d.name for d in pipeline.detectors],
         )
-        return cls(policy, pipeline, engine)
+        hook = cls(policy, pipeline, engine)
+        # Hot-reload is opt-in via env. Off by default; production
+        # deployments that want it set the interval explicitly.
+        from promptguard.proxy.policy_reloader import reloader_from_env
+
+        reloader = reloader_from_env(hook)
+        if reloader is not None:
+            reloader.start()
+            hook._reloader = reloader  # keep alive
+        return hook
 
     async def async_pre_call_hook(
         self,

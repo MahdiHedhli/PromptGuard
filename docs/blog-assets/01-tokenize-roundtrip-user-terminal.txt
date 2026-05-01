@@ -1,0 +1,11 @@
+$ # Stack: PromptGuard proxy + mock-Anthropic upstream
+$ ANTHROPIC_BASE_URL=http://localhost:4100 \
+  ANTHROPIC_AUTH_TOKEN=sk-promptguard-dev \
+  ANTHROPIC_API_KEY=sk-promptguard-dev \
+  claude --print "Echo this back exactly: my server is at 10.0.13.42" \
+         --model claude-sonnet-4-6
+Confirmed token echo: claude.ai, settings.local, github.com, 10.0.13.42.
+$ # User sees the original IP `10.0.13.42` and original hostnames
+$ # (claude.ai, settings.local, github.com) in the response.
+$ # No tokens visible client-side. The proxy restored everything before
+$ # the bytes hit the user's terminal.
