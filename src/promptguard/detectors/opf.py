@@ -20,12 +20,13 @@ reported as Category.OTHER so policy authors can see them in audit logs.
 from __future__ import annotations
 
 import os
-from typing import Any
+from typing import Any, ClassVar
 
 import httpx
 
 from promptguard.core.detection import Detection
 from promptguard.core.policy import Category
+from promptguard.detectors.base import DetectorAdapter
 
 DEFAULT_BASE_URL = os.environ.get("PROMPTGUARD_OPF_URL", "http://localhost:8081")
 DEFAULT_TIMEOUT_S = float(os.environ.get("PROMPTGUARD_OPF_TIMEOUT_S", "10.0"))
@@ -44,8 +45,8 @@ OPF_LABEL_TO_CATEGORY: dict[str, Category] = {
 }
 
 
-class OPFDetector:
-    name: str = "opf"
+class OPFDetector(DetectorAdapter):
+    name: ClassVar[str] = "opf"
 
     def __init__(
         self,

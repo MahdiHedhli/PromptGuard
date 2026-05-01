@@ -9,14 +9,16 @@ what later stages do.
 from __future__ import annotations
 
 from collections.abc import Iterable
+from typing import ClassVar
 
 from promptguard.core.detection import Detection
 from promptguard.core.policy import Category
+from promptguard.detectors.base import DetectorAdapter
 from promptguard.detectors.regex_patterns import PATTERNS, PatternSpec
 
 
-class RegexDetector:
-    name: str = "regex"
+class RegexDetector(DetectorAdapter):
+    name: ClassVar[str] = "regex"
 
     def __init__(self, patterns: Iterable[PatternSpec] | None = None) -> None:
         self._patterns = tuple(patterns) if patterns is not None else PATTERNS

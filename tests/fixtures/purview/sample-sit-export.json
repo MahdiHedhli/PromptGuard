@@ -1,0 +1,49 @@
+{
+  "_comment": "Synthetic Microsoft Purview Sensitive Information Type (SIT) export for v1 testing. Real Graph API calls land in v1.1; this fixture mirrors the shape of `informationProtection/sensitivityLabels` + custom-SIT exports closely enough that the parsing logic is meaningful. Five entries cover the categories Mahdi typically deals with on engagements.",
+  "policyName": "purview-engagement-export-2026q2",
+  "policyVersion": "3",
+  "exportedAtUtc": "2026-04-30T17:00:00Z",
+  "informationTypes": [
+    {
+      "id": "sit-private-key",
+      "displayName": "Private cryptographic key",
+      "promptguardCategory": "private_key",
+      "recommendedAction": "BLOCK",
+      "description": "PEM-format private keys (RSA, EC, OPENSSH).",
+      "minConfidence": 0.95
+    },
+    {
+      "id": "sit-cloud-credential",
+      "displayName": "Cloud provider credential",
+      "promptguardCategory": "cloud_api_key",
+      "recommendedAction": "BLOCK",
+      "description": "AWS / GCP / Azure credentials.",
+      "minConfidence": 0.9
+    },
+    {
+      "id": "sit-customer-name",
+      "displayName": "Customer codename",
+      "promptguardCategory": "customer_name",
+      "recommendedAction": "BLOCK",
+      "description": "Names listed in the engagement scope document; org-specific.",
+      "minConfidence": 0.7
+    },
+    {
+      "id": "sit-internal-ip",
+      "displayName": "Internal RFC-1918 IP",
+      "promptguardCategory": "internal_ip",
+      "recommendedAction": "MASK",
+      "description": "Network layout disclosure; mask rather than block during early discovery.",
+      "minConfidence": 0.99
+    },
+    {
+      "id": "sit-employee-email",
+      "displayName": "Employee email",
+      "promptguardCategory": "email",
+      "recommendedAction": "MASK",
+      "description": "Employee email addresses; mask to preserve workflow context without leaking identity.",
+      "minConfidence": 0.85
+    }
+  ],
+  "_v1_1_todo": "Replace this static fixture with a live fetch from Microsoft Graph: GET /security/informationProtection/sensitivityLabels and translate each label/SIT into a PolicyRule. Authentication via service principal or managed identity per the operator's tenant config. Out of scope for v1."
+}

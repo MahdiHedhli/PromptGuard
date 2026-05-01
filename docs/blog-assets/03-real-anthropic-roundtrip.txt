@@ -1,0 +1,39 @@
+=== Real Anthropic round-trip via PromptGuard proxy (PARTIAL) ===
+=== Date: 2026-05-01 ===
+=== Policy: regex-only ===
+=== Stack: PromptGuard proxy + real api.anthropic.com upstream ===
+
+Real-key capture was attempted on Day 6. Result: the free-tier Anthropic
+account had zero credit balance, so the upstream returned an error
+without ever generating a response. The capture is therefore PARTIAL.
+
+What this artifact does demonstrate (still useful for the post):
+
+  * PromptGuard's pre-call hook fired correctly (the request reached
+    upstream, otherwise we would not have seen Anthropic's error).
+  * PromptGuard does NOT mangle upstream errors. The "Credit balance is
+    too low" message returned to claude CLI verbatim, in Anthropic's
+    native error shape. Our error envelope (DEC-006 + DEC-010) only
+    fires for our own BLOCK action; everything else passes through.
+
+Wire trace:
+
+$ ANTHROPIC_BASE_URL=http://localhost:4100 \
+   ANTHROPIC_AUTH_TOKEN=sk-promptguard-dev \
+   ANTHROPIC_API_KEY=sk-promptguard-dev \
+   claude --print "I have an internal server at 10.0.13.42. State the RFC-1918 range it falls in. One sentence." \
+          --model claude-sonnet-4-6
+
+--- CLAUDE OUTPUT ---
+Credit balance is too low
+--- END ---
+
+The upstream message bubbled up unchanged. This is the desired
+behavior: PromptGuard owns the policy-violation 4xx envelope and lets
+provider-side errors pass through verbatim.
+
+For the actual TOKENIZE round-trip visual (PII outbound -> tokens
+upstream -> PII restored on inbound), see asset 01 + 02 (mock-Anthropic
+capture). The mock is sufficient to prove the round-trip semantics; the
+real-key version replays the same path against api.anthropic.com once
+the account has credit.

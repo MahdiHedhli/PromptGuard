@@ -22,6 +22,7 @@ The outline numbering tracks `docs/research-notes.md` section 14:
 
 - **[01-tokenize-roundtrip-user-terminal.txt](01-tokenize-roundtrip-user-terminal.txt)**: terminal capture of a real claude CLI session through the PromptGuard proxy. User sees their original IP and hostnames in the response. Slots into **section 8** (TOKENIZE round-trip). Pair with asset 02.
 - **[02-tokenize-roundtrip-upstream-view.json](02-tokenize-roundtrip-upstream-view.json)**: upstream-side capture from the integration test fixture (`mock-anthropic`'s `/_test/last_received` endpoint). Shows what the upstream provider actually received: tokens, never originals. Slots into **section 8** as the "split-screen" visual paired with asset 01.
+- **[03-real-anthropic-roundtrip.txt](03-real-anthropic-roundtrip.txt)**: PARTIAL real-Anthropic capture. The free-tier API key had zero credit on Day 6 so the upstream returned a "credit balance too low" error before generating a response. The artifact still shows one useful thing for **section 8**: PromptGuard does NOT mangle upstream provider errors. The Anthropic-shaped error reached the user verbatim, which means our error envelope only owns our own BLOCK path; everything else passes through unmodified.
 
 ## Capture protocol
 
@@ -33,7 +34,7 @@ README stays the master index.
 
 ## Pending captures
 
-- A scrolling capture of a streaming TOKENIZE round-trip (Day 4 carryover; needs ANTHROPIC_API_KEY in .env).
+- Real-Anthropic full round-trip (deferred until the free-tier account has credit).
 - Latency p50/p95/p99 chart from Day 9 benchmarks.
 - Side-by-side regex / OPF / Presidio / layered F1 numbers from Day 9 benchmarks.
 - Schema-error UX example: `at line 7, column 12 (rules.2.action): ... got 'REJECT'` (slots into the policy-schema sidebar).

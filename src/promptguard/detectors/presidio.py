@@ -11,12 +11,13 @@ should report through the standard Presidio entity-type mechanism.
 from __future__ import annotations
 
 import os
-from typing import Any
+from typing import Any, ClassVar
 
 import httpx
 
 from promptguard.core.detection import Detection
 from promptguard.core.policy import Category
+from promptguard.detectors.base import DetectorAdapter
 
 DEFAULT_BASE_URL = os.environ.get(
     "PROMPTGUARD_PRESIDIO_URL", "http://localhost:5002"
@@ -39,8 +40,8 @@ PRESIDIO_ENTITY_TO_CATEGORY: dict[str, Category] = {
 }
 
 
-class PresidioDetector:
-    name: str = "presidio"
+class PresidioDetector(DetectorAdapter):
+    name: ClassVar[str] = "presidio"
 
     def __init__(
         self,

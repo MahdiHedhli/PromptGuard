@@ -16,12 +16,13 @@ and look up the matching node to print:
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 import yaml
 from pydantic import ValidationError
 
 from promptguard.core.policy import Policy
+from promptguard.policies.base import PolicyAdapter
 
 
 class PolicySchemaError(ValueError):
@@ -130,8 +131,8 @@ def _format_pydantic_error(
     return "\n".join(lines)
 
 
-class LocalYAMLPolicy:
-    name: str = "local_yaml"
+class LocalYAMLPolicy(PolicyAdapter):
+    name: ClassVar[str] = "local_yaml"
 
     def __init__(self, path: str | Path) -> None:
         self._path = Path(path)

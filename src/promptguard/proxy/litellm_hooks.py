@@ -95,19 +95,21 @@ class PromptGuardHook:
     def from_env(cls) -> PromptGuardHook:
         """Build a hook from environment variables. Used by the container.
 
-        PROMPTGUARD_POLICY_FILE: path to YAML policy (default policies/default.yaml)
+        PROMPTGUARD_POLICY_SOURCE: local_yaml | purview_dlp | icap | git_manifest (default local_yaml)
+        PROMPTGUARD_POLICY_FILE: path to source artifact for the chosen adapter
         PROMPTGUARD_OPF_URL:     OPF service URL
         PROMPTGUARD_PRESIDIO_URL: Presidio analyzer URL
         PROMPTGUARD_POLICY_RELOAD_INTERVAL_S: float seconds, 0 disables.
         """
-        policy_file = os.environ.get(
-            "PROMPTGUARD_POLICY_FILE", "/app/policies/default.yaml"
-        )
-        policy = LocalYAMLPolicy(policy_file).load()
+        from promptguard.policies import build_policy_adapter_from_env
+
+        adapter = build_policy_adapter_from_env()
+        policy = adapter.load()
         pipeline = build_pipeline_from_policy(policy)
         engine = ActionEngine(policy)
         logger.info(
-            "PromptGuard hook initialized: policy=%s v=%s detectors=%s",
+            "PromptGuard hook initialized: source=%s policy=%s v=%s detectors=%s",
+            adapter.name,
             policy.name,
             policy.version,
             [d.name for d in pipeline.detectors],

@@ -7,11 +7,14 @@ visible and policy-source plug-in points exist.
 
 from __future__ import annotations
 
+from typing import ClassVar
+
 from promptguard.core.policy import Policy
+from promptguard.policies.base import PolicyAdapter
 
 
-class GitManifestPolicy:
-    name: str = "git_manifest"
+class GitManifestPolicy(PolicyAdapter):
+    name: ClassVar[str] = "git_manifest"
 
     def __init__(self, repo_url: str, manifest_path: str = "policy.yaml") -> None:
         self._repo_url = repo_url
