@@ -82,6 +82,19 @@ rules:
 
 `min_confidence` is a float in [0.0, 1.0]. A detection below the floor falls back to `ALLOW` for that category. Default 0.0 (no floor).
 
+`audit_only` (per rule, optional, DEC-019): when set to `true`, the rule fires audit events but does NOT apply its action. When set to `false`, the rule enforces even if the policy-level `audit_only` is `true`. Default `null` (inherit from `Policy.audit_only`). Useful for the workflow "audit-only this one rule for two weeks then promote".
+
+Worked example: ship a new internal-IP detection rule as audit-only while keeping the rest of the policy enforcing.
+
+```yaml
+name: gradual-rollout
+audit_only: false
+rules:
+  - { category: cloud_api_key, action: BLOCK }
+  - { category: email,         action: MASK }
+  - { category: internal_ip,   action: TOKENIZE, audit_only: true }   # audit only
+```
+
 ## Schema errors
 
 Loaders use a line-tracking YAML parser. A typo produces:

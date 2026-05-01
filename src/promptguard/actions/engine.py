@@ -82,38 +82,49 @@ class ActionEngine:
         detections: list[Detection],
         context: ActionContext,
     ) -> EngineResult:
-        # Bucket detections by the action our policy chooses for them.
+        # Bucket detections into six buckets: action x {enforce, audit}.
+        # Per-rule audit_only (DEC-019) overrides policy-level audit_only.
         # Detections whose category resolves to ALLOW are dropped: they
         # are not violations, not rewrites, and do not pollute the audit.
-        bucket_block: list[Detection] = []
-        bucket_mask: list[Detection] = []
-        bucket_tokenize: list[Detection] = []
+        bucket_block_enforce: list[Detection] = []
+        bucket_block_audit: list[Detection] = []
+        bucket_mask_enforce: list[Detection] = []
+        bucket_mask_audit: list[Detection] = []
+        bucket_tokenize_enforce: list[Detection] = []
+        bucket_tokenize_audit: list[Detection] = []
         for d in detections:
             action = self._policy.action_for(d.category, d.confidence)
+            if action == Action.ALLOW:
+                continue
+            audit_only = self._policy.is_rule_audit_only(d.category, d.confidence)
             if action == Action.BLOCK:
-                bucket_block.append(d)
+                (bucket_block_audit if audit_only else bucket_block_enforce).append(d)
             elif action == Action.MASK:
-                bucket_mask.append(d)
+                (bucket_mask_audit if audit_only else bucket_mask_enforce).append(d)
             elif action == Action.TOKENIZE:
-                bucket_tokenize.append(d)
-            # ALLOW falls through; not recorded.
+                (bucket_tokenize_audit if audit_only else bucket_tokenize_enforce).append(d)
 
-        # Audit-only mode: compute would-be decisions, emit audit events,
-        # but do NOT block, mask, or tokenize. The original text is
-        # forwarded to the upstream unchanged. Operators use this mode
-        # during policy bring-up to see what would have fired without
-        # disrupting the user.
-        if self._policy.audit_only:
-            return self._apply_audit_only(
-                text, bucket_block, bucket_mask, bucket_tokenize, context
-            )
+        # Emit audit events for every audit-only detection regardless of
+        # whether enforcement also fires. Operator workflow: "audit-only
+        # this one rule for two weeks then promote" needs the events to
+        # accumulate even on requests that other rules block.
+        self._emit_audit_events(bucket_block_audit, BlockAction.name, context)
+        self._emit_audit_events(bucket_mask_audit, MaskAction.name, context)
+        self._emit_audit_events(bucket_tokenize_audit, TokenizeAction.name, context)
+
+        bucket_block = bucket_block_enforce
+        bucket_mask = bucket_mask_enforce
+        bucket_tokenize = bucket_tokenize_enforce
 
         if bucket_block:
             block_result = self._block.apply(text, bucket_block, context)
+            audit_entries = list(block_result.audit) + self._audit_entries_for(
+                bucket_block_audit + bucket_mask_audit + bucket_tokenize_audit
+            )
             return EngineResult(
                 blocked=True,
                 rewritten_text=text,
-                audit=block_result.audit,
+                audit=tuple(audit_entries),
                 violations=block_result.violations,
                 policy_name=self._policy.name,
                 policy_version=self._policy.version,
@@ -166,6 +177,13 @@ class ActionEngine:
             )
         audit.reverse()
 
+        # Append the audit-only detections to the audit trail so callers
+        # see what fired without enforcement.
+        audit.extend(
+            self._audit_entries_for(
+                bucket_block_audit + bucket_mask_audit + bucket_tokenize_audit
+            )
+        )
         return EngineResult(
             blocked=False,
             rewritten_text=rewritten,
@@ -174,6 +192,52 @@ class ActionEngine:
             policy_name=self._policy.name,
             policy_version=self._policy.version,
         )
+
+    def _audit_entries_for(self, detections: list[Detection]) -> list[AuditEntry]:
+        """Build AuditEntry rows for audit-only detections (no rewrite)."""
+        from promptguard.core.policy import Action  # already imported above
+
+        entries: list[AuditEntry] = []
+        for d in detections:
+            action = self._policy.action_for(d.category, d.confidence)
+            entries.append(
+                AuditEntry(
+                    category=d.category.value,
+                    detector=d.detector,
+                    action=action.value,
+                    start=d.start,
+                    end=d.end,
+                    confidence=d.confidence,
+                    replacement="",
+                )
+            )
+        return entries
+
+    def _emit_audit_events(
+        self,
+        detections: list[Detection],
+        action_name: str,
+        context: ActionContext,
+    ) -> None:
+        if self._audit_writer is None:
+            return
+        for d in detections:
+            self._audit_writer.write(
+                AuditEvent(
+                    timestamp=now_iso8601_utc(),
+                    conversation_id=context.conversation_id,
+                    request_id=context.request_id,
+                    rule=f"{d.category.value} -> {action_name}",
+                    detector=d.detector,
+                    category=d.category.value,
+                    span_offset=d.start,
+                    span_length=d.end - d.start,
+                    would_have_been_action=action_name,
+                    pipeline_version=self._pipeline_version,
+                    policy_hash=self._policy_hash,
+                    confidence=round(d.confidence, 4),
+                )
+            )
 
     def _apply_audit_only(
         self,

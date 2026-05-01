@@ -1,9 +1,30 @@
+# =============================================================================
 # Secrets
+# =============================================================================
 .env
 .env.*
 !.env.example
+*.pem
+*.key
+*.crt
+secrets/
+credentials/
 
+# =============================================================================
+# Local-only working folder for runtime artifacts, scratch work, benchmark
+# outputs that are NOT shipped with the project. Subtree organization:
+#   local/audit/            runtime audit log files
+#   local/benchmarks/results/  benchmark CSV / JSON outputs
+#   local/scratch/          ad-hoc experiments
+# =============================================================================
+local/
+*-audit.log
+audit.log
+promptguard-audit.log
+
+# =============================================================================
 # Python
+# =============================================================================
 __pycache__/
 *.py[cod]
 *$py.class
@@ -18,24 +39,81 @@ ENV/
 .mypy_cache/
 .ruff_cache/
 .coverage
+.coverage.*
+coverage.xml
 htmlcov/
 dist/
 build/
+*.whl
 
+# =============================================================================
 # uv
+# =============================================================================
 uv.lock.local
 
+# =============================================================================
 # Node (kept for any future browser-extension work)
+# =============================================================================
 node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# OS / editor
+# =============================================================================
+# Hugging Face / model caches (large, not for git)
+# =============================================================================
+.cache/
+huggingface/
+
+# =============================================================================
+# Agent state files. Claude Code, Cursor, Aider, Windsurf, Continue, etc.
+# These contain conversation history, cache, and tool config that shouldn't
+# leak into the public repo.
+# =============================================================================
+.claude/
+.cursor/
+.windsurf/
+.continue/
+.aider*
+*.aider.conf
+.copilot/
+
+# =============================================================================
+# OS artifacts
+# =============================================================================
+# macOS
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+.AppleDouble
+.LSOverride
+Icon?
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+# Linux
+.directory
+.Trash-*
+.fuse_hidden*
+
+# =============================================================================
+# Editors / IDEs
+# =============================================================================
 .idea/
 .vscode/
 *.swp
+*.swo
+*.swn
+*~
+\#*\#
+.\#*
 
-# Local-only bootstrap doc (created during initial setup, not part of repo)
+# =============================================================================
+# Project-internal initial bootstrap doc (created during initial setup,
+# not part of public repo)
+# =============================================================================
 code-bootstrap-prompt.md

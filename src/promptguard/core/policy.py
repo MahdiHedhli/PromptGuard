@@ -36,13 +36,22 @@ class Category(StrEnum):
 
 
 class PolicyRule(BaseModel):
-    """A single (category -> action) mapping with optional confidence floor."""
+    """A single (category -> action) mapping with optional confidence floor.
+
+    `audit_only` per rule (DEC-019): when explicitly set, this rule
+    fires audit events only; its action is NOT applied to the request.
+    `None` (the default) means inherit the policy-level `audit_only`
+    flag, which is `False` unless the operator overrides at the policy
+    level. Useful for the workflow "audit-only this one rule for two
+    weeks then promote."
+    """
 
     model_config = ConfigDict(extra="forbid")
 
     category: Category
     action: Action
     min_confidence: float = Field(default=0.0, ge=0.0, le=1.0)
+    audit_only: bool | None = None
 
 
 class DetectorToggle(BaseModel):
@@ -84,3 +93,22 @@ class Policy(BaseModel):
             if rule.category == category and confidence >= rule.min_confidence:
                 return rule.action
         return Action.ALLOW
+
+    def is_rule_audit_only(self, category: Category, confidence: float) -> bool:
+        """Effective audit_only flag for the rule matching this category.
+
+        Resolution order (DEC-019):
+          1. The matching rule's `audit_only`, if explicitly True/False.
+          2. The policy-level `audit_only` flag (default False).
+
+        If no rule matches (action ALLOW), the engine drops ALLOW
+        detections from the audit path entirely; this method then falls
+        back to the policy-level flag, which is academic because nothing
+        gets emitted for ALLOWed categories.
+        """
+        for rule in self.rules:
+            if rule.category == category and confidence >= rule.min_confidence:
+                if rule.audit_only is not None:
+                    return rule.audit_only
+                return self.audit_only
+        return self.audit_only

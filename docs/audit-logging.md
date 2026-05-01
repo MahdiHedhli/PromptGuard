@@ -4,16 +4,21 @@ PromptGuard's audit log is a JSONL file recording what would have happened under
 
 ## When events are written
 
-Set `audit_only: true` at the policy level in your YAML (or whichever adapter you use). When set:
+Two granularities (DEC-019):
+
+1. **Policy-wide:** `audit_only: true` at the policy level. Every rule defaults to audit-only; events emit, no enforcement happens. Use during initial policy bring-up.
+2. **Per rule:** `audit_only: true` (or `false`) inside an individual rule. Per-rule wins over policy-level. Useful for the workflow "audit-only this one rule for two weeks then promote".
+
+When a rule is in audit-only mode:
 
 - The detection pipeline runs as normal.
 - The action engine computes the would-be decision per detection (BLOCK / MASK / TOKENIZE).
-- The proxy forwards the **original** request to the upstream LLM unmodified.
+- The proxy forwards the **original** request to the upstream LLM unmodified for that rule's findings.
 - One audit event is appended to the log per non-ALLOW detection.
 
-This is the right mode during policy bring-up: operators see what fires before deciding to enforce.
+When a rule is in enforce mode (the default), it applies its action: rewrites for MASK/TOKENIZE or rejects with the BLOCK envelope. No audit events emitted.
 
-In normal mode (`audit_only: false`), no audit events are written. The action engine rewrites or blocks as configured. Use the proxy's INFO logs (`request_id=...`) for that path.
+Audit and enforce can mix on a single request. A BLOCK-enforce on a credential blocks the request, and an audit-only email rule emits its events for the same request so operators see everything that fired.
 
 ## Event schema
 
