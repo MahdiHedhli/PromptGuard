@@ -1,6 +1,6 @@
 """End-to-end TOKENIZE round-trip via mock-Anthropic upstream.
 
-Validates the Day-3-4 promise: a TOKENIZE-mapped value is replaced with
+Validates the v1-4 promise: a TOKENIZE-mapped value is replaced with
 an unguessable token in the outbound request, the upstream echoes the
 token in its response, and the proxy substitutes the original value
 back so the user sees their original content.

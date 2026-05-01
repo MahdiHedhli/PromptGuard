@@ -17,5 +17,5 @@
   "stream": true,
   "policy": "regex-only",
   "categories_caught": ["domain", "internal_ip"],
-  "note_user_email_was_masked": "The user's email mhedhli@42-corp.com appeared in claude CLI's system-reminder block. Default policy MASKs emails (no token-map ledger) so the upstream saw `[EMAIL_REDACTED]` and the user-visible response did not refer to the email at all (MASK is one-way by design: see threat-model A6)."
+  "note_user_email_was_masked": "An email address (synthetic stand-in here: alice@internal-corp.example) appeared in claude CLI's system-reminder block. Default policy MASKs emails (no token-map ledger) so the upstream saw `[EMAIL_REDACTED]` and the user-visible response did not refer to the email at all (MASK is one-way by design: see threat-model A6). The original captured artifact contained the owner's real work address; it has been replaced here with the synthetic form before publication."
 }

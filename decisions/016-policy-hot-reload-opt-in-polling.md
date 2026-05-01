@@ -2,14 +2,14 @@
 
 **Date:** 2026-05-03
 **Status:** Accepted
-**Phase:** Day 5 (policy config polish)
+**Phase:** v1 (policy config polish)
 **Author:** Claude Code (autonomous)
 
 ---
 
 ## Context
 
-Day-5 brief lists policy hot-reload as a nice-to-have with a 4-hour
+the v1 plan lists policy hot-reload as a nice-to-have with a 4-hour
 timebox. The motivation: operators iterating on a policy YAML want to
 see changes apply without restarting the proxy and disrupting in-flight
 conversations. Restart also resets the per-conversation TokenMap, so

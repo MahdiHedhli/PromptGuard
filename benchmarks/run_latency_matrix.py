@@ -1,8 +1,8 @@
-"""Day-9 latency matrix: in-process latency across configurations.
+"""v1 latency matrix: in-process latency across configurations.
 
 Measures the request-path latency for several configurations:
 
-  baseline            RegexDetector.detect_sync only (Day-1 floor)
+  baseline            RegexDetector.detect_sync only (v1 floor)
   regex+engine        Full DetectionPipeline + ActionEngine + JSON-safe
                       extract/rewrite, regex layer only. Default action
                       mapping: BLOCK on credentials, MASK on email,
@@ -17,7 +17,7 @@ Output:
 All configurations are in-process; OPF / Presidio / LLM judge add
 HTTP-hop costs measured separately (those services need to be
 running). End-to-end through the LiteLLM proxy adds a further fixed
-overhead (~12ms per Day 5 measurements) that is dominated by
+overhead (~12ms per v1 measurements) that is dominated by
 LiteLLM, not PromptGuard.
 
 Re-run from repo root:
@@ -75,7 +75,7 @@ def _summary(samples_ms: list[float]) -> dict[str, float]:
 
 
 def _bench_baseline_regex(prompt: str, n: int) -> list[float]:
-    """Pure regex detection. Day-1 floor."""
+    """Pure regex detection. v1 floor."""
     det = RegexDetector()
     det.detect_sync(prompt)  # warm
     samples: list[float] = []
@@ -181,7 +181,7 @@ async def main() -> None:
             "and are characterized in the latency narrative; their "
             "HTTP hop adds 1-3 ms over loopback when warm. End-to-end "
             "through the LiteLLM proxy adds a further ~12 ms fixed "
-            "overhead (Day 5 measurement) that is LiteLLM, not "
+            "overhead (v1 measurement) that is LiteLLM, not "
             "PromptGuard."
         ),
     }
@@ -191,7 +191,7 @@ async def main() -> None:
     print(f"wrote {raw_path}")
 
     md_lines = [
-        "# Latency matrix (Day 9, in-process)",
+        "# Latency matrix (v1, in-process)",
         "",
         f"Prompt length: {results['prompt_length_chars']} chars. n={results['n_samples']} samples per config.",
         "",

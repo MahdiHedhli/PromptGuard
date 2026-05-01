@@ -1,4 +1,4 @@
-# Latency matrix (Day 9, in-process)
+# Latency matrix (v1, in-process)
 
 Prompt length: 305 chars. n=1000 samples per config.
 

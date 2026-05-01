@@ -2,19 +2,19 @@
 
 **Date:** 2026-05-01
 **Status:** Accepted
-**Phase:** Day 2 (action engine + LiteLLM hook)
+**Phase:** v1 (action engine + LiteLLM hook)
 **Author:** Claude Code (autonomous)
 
 ---
 
 ## Context
 
-Day-2 directive from Mahdi: if a policy enables OPF and OPF is not
+v1 directive from Mahdi: if a policy enables OPF and OPF is not
 available, hard-fail with a clear, actionable error. PromptGuard's
 threat-model promise is "PII never leaves the host"; silently degrading
 to "OPF disabled" breaks that promise without operator awareness.
 
-Day 1 (DEC-002) intentionally shipped lazy model loading on first
+v1 (DEC-002) intentionally shipped lazy model loading on first
 `/detect` call, with `/health` reporting server-up and `/ready` reporting
 model-loaded. The lazy approach kept `docker compose up -d --wait` fast.
 
@@ -57,7 +57,7 @@ JSON detail otherwise (`{"status": "loading"}` or
 
 The proxy's `build_pipeline_from_policy()` probes `/ready` with a 5-second
 timeout when OPF is enabled. On non-200 the proxy raises
-`DetectorUnavailableError` with the exact message from the Day-2 brief:
+`DetectorUnavailableError` with the exact message from the v1 plan:
 
 ```
 OPF model not available at $url. Refusing to start pipeline.

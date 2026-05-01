@@ -2,20 +2,20 @@
 
 **Date:** 2026-05-07
 **Status:** Accepted
-**Phase:** Day 10 (packaging polish; Day-8 carryover root-cause)
+**Phase:** v1 (packaging polish; v1 carryover root-cause)
 **Author:** MahdiHedhli
 
 ---
 
 ## Context
 
-Day-8 daily report flagged that direct curl + real-Anthropic round-trip
+v1 daily report flagged that direct curl + real-Anthropic round-trip
 worked cleanly through the proxy, but the same prompts via the `claude`
 CLI v2.x errored with `API Error: Content block is not a text block`.
-Two streaming-restorer adjustments shipped on Day 8 (no-op short-circuit
+Two streaming-restorer adjustments shipped on v1 (no-op short-circuit
 when no tokens needed restoring; preserve event count by emitting empty-
 text deltas instead of collapsing) reduced the surface but did not fully
-resolve. The Day-10 brief allocated a 2-hour timebox to root-cause.
+resolve. The the v1 plan allocated a 2-hour timebox to root-cause.
 
 Resolved in 30 minutes inside the window. Hypothesis was right on the
 first attempt and the fix is small.
@@ -37,7 +37,7 @@ parser saw a delta at `index=0` whose matching `content_block_start`
 declared a `thinking` block, NOT a text block. The CLI correctly
 rejected the mismatch with `Content block is not a text block`.
 
-The issue did not surface on direct curl because the Day-9 mock-
+The issue did not surface on direct curl because the v1 mock-
 Anthropic upstream and our integration tests did not use extended-
 thinking, so all content blocks were at `index=0` and the hardcoded
 index happened to match. The CLI exposed the bug because its requests
@@ -107,7 +107,7 @@ working capture.
 - The fix is opt-in to no behavior change for the existing
   test corpus (mock-Anthropic, all index=0): re-encoded events are
   byte-identical to the previous hardcoded-index emissions on those
-  inputs. Day-3 round-trip tests stay green.
+  inputs. v1 round-trip tests stay green.
 - Real-key claude CLI capture refreshed at
   `docs/blog-assets/03-real-anthropic-roundtrip.txt` with an honest
   note about LLM paraphrase behavior: when the model paraphrases

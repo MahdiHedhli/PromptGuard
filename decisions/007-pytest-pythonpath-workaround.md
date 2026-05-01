@@ -2,7 +2,7 @@
 
 **Date:** 2026-04-30
 **Status:** Accepted
-**Phase:** Day 1 (scaffold)
+**Phase:** v1 (scaffold)
 **Author:** Claude Code (autonomous)
 
 ---

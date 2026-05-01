@@ -6,7 +6,7 @@ Public surface:
     from promptguard.actions import TokenMap
 
 Reverse-path TOKENIZE (response rewriting + streaming buffering) lives on
-`TokenMap.restore()`; v1 ships it as identity, Day 3-4 fills it in.
+`TokenMap.restore()`.
 """
 
 from promptguard.actions.base import (

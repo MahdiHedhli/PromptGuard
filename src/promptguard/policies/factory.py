@@ -5,7 +5,7 @@ The proxy reads `PROMPTGUARD_POLICY_SOURCE` (default `local_yaml`) and
 module is the one place that knows about every shipped adapter, so
 swapping policy sources is a one-line config change for the operator.
 
-Day 6-7 validation gate: a user can swap policy source by changing
+v1 validation gate: a user can swap policy source by changing
 `PROMPTGUARD_POLICY_SOURCE`. No code changes needed in the proxy hook
 or anywhere else.
 """

@@ -10,8 +10,8 @@ LiteLLM container, where litellm is available. Unit tests do not import
 this module so they run without a litellm dep.
 
 Importing this module fails loudly if the policy file or any required
-detector service is misconfigured. That is the desired behavior per the
-Day-2 brief: "fail loud, never silently fall back."
+detector service is misconfigured. That is the desired behavior:
+"fail loud, never silently fall back."
 """
 
 from __future__ import annotations

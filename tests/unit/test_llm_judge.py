@@ -10,7 +10,7 @@ Validates:
   * out-of-range / inverted spans: dropped silently
 
 All tests use respx to mock the Ollama HTTP endpoint. CI never reaches
-a real Ollama; the Day-8 brief explicitly says "tests use canned mock
+a real Ollama; the v1 plan explicitly says "tests use canned mock
 LLM responses, NOT real Ollama calls".
 
 For an opt-in real-Ollama integration test, see docs/llm-judge.md.

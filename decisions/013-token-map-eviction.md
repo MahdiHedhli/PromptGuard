@@ -2,14 +2,14 @@
 
 **Date:** 2026-05-02
 **Status:** Accepted
-**Phase:** Day 3 (reversible TOKENIZE)
+**Phase:** v1 (reversible TOKENIZE)
 **Author:** Claude Code (autonomous)
 
 ---
 
 ## Context
 
-Day-3 brief: per-conversation token map storage in-memory dict keyed by
+the v1 plan: per-conversation token map storage in-memory dict keyed by
 `conversation_id`, evicted by TTL or max-size LRU. "Pick TTL = 1 hour
 or 100 conversations, whichever fits memory budget." This decision
 records the chosen values and rationale.

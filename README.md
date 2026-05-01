@@ -65,7 +65,7 @@ If something on the host already binds port 4000 (LiteLLM), 5002 (Presidio), or 
 
 ## Architecture
 
-See [docs/architecture.md](docs/architecture.md) for the full picture and [docs/threat-model.md](docs/threat-model.md) for what PromptGuard does and does not defend against. The locked design decisions live in [docs/research-notes.md](docs/research-notes.md).
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full picture and [docs/threat-model.md](docs/threat-model.md) for what PromptGuard does and does not defend against. The locked design decisions live in [docs/research-notes.md](docs/research-notes.md).
 
 ## Development
 
@@ -88,6 +88,8 @@ uv run pytest -m mock_upstream
 
 Apache 2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE).
 
-## Test corpora caveat
+## Benchmark methodology and corpora
 
-The PII detection benchmarks reference [AI4Privacy PII-Masking-300k](https://huggingface.co/datasets/ai4privacy/pii-masking-300k), which is licensed for academic evaluation only. Commercial training requires separate licensing. PromptGuard uses this corpus for evaluation, not training.
+The detection numbers in [docs/benchmarks.md](docs/benchmarks.md) come from a synthetic corpus of 220 examples generated locally by `benchmarks/run_detection_benchmarks.py`. We did NOT run [AI4Privacy PII-Masking-300k](https://huggingface.co/datasets/ai4privacy/pii-masking-300k) against the pipeline in v1; the corpus and the `datasets` download path did not fit the v1 budget. Where AI4Privacy results are referenced, they are Tonic.ai's published OPF numbers on that corpus, cited as external sanity check rather than a result we reproduced.
+
+AI4Privacy is licensed for academic evaluation only; commercial training requires separate licensing. The v1.1 benchmark roadmap in [docs/benchmarks.md](docs/benchmarks.md) tracks the planned full AI4Privacy run against the layered pipeline.

@@ -2,14 +2,14 @@
 
 **Date:** 2026-04-30
 **Status:** Accepted
-**Phase:** Day 1 (scaffold)
+**Phase:** v1 (scaffold)
 **Author:** Claude Code (autonomous)
 
 ---
 
 ## Context
 
-Day 1 deliverable 4 calls for a baseline regex pattern set covering PEM keys, AWS / GCP / Azure credentials, DB URLs, JWTs, RFC 1918, domains, emails, and similar. The bootstrap prompt explicitly suggests vendoring from `detect-secrets` and `gitleaks` "where licensing allows."
+v1 deliverable 4 calls for a baseline regex pattern set covering PEM keys, AWS / GCP / Azure credentials, DB URLs, JWTs, RFC 1918, domains, emails, and similar. The bootstrap prompt explicitly suggests vendoring from `detect-secrets` and `gitleaks` "where licensing allows."
 
 Constraints:
 - Apache 2.0-compatible deps only (CLAUDE.md).
@@ -56,7 +56,7 @@ Confidence scores are conservative. The regex layer is the "shape" floor; OPF (s
 - Pattern coverage is intentionally narrower than full gitleaks; we cover the common cases listed in the bootstrap, not every cloud provider's quirky token format.
 
 ### Revisit if
-- A benchmark run (Day 9) shows the regex layer is missing a high-incidence secret class on the GitHub-Issues-Secrets corpus.
+- A benchmark run (v1) shows the regex layer is missing a high-incidence secret class on the GitHub-Issues-Secrets corpus.
 - Upstream gitleaks releases a comprehensive pattern set under a friendlier-to-vendor format (e.g., a JSON manifest).
 
 ## Implementation notes

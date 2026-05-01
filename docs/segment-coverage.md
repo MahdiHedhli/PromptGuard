@@ -45,9 +45,9 @@ In rough priority order, with realistic effort estimates:
 2. **Desktop app interception spike**. Investigate what TLS interception actually requires given current macOS / Windows certificate-store and code-signing semantics. Output: a feasibility document, not a shipping integration. Estimated 1 week of investigation.
 3. **Centralized proxy mode for mobile and corporate networks.** Out of scope for v1 by design (research-notes section 11). v1.1 if the desktop / web work surfaces a path that makes this cheaper.
 
-## Day-10 desktop interception spike
+## v1 desktop interception spike
 
-Spent ~45 minutes on the desktop spike per the Day-10 brief allocation.
+Spent ~45 minutes on the desktop spike per the v1 plan allocation.
 
 **What desktop app interception actually requires (macOS Apple Silicon, claude.app version current as of 2026-05-07):**
 

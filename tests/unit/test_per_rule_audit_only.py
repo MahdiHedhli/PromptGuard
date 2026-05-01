@@ -1,6 +1,6 @@
 """Per-rule audit_only behavior (DEC-019).
 
-The policy schema gained `PolicyRule.audit_only` on Day 9. The field is
+The policy schema gained `PolicyRule.audit_only` on v1. The field is
 optional (None = inherit policy-level). Resolution rules:
 
   rule.audit_only=True  -> this rule emits events, never enforces
@@ -8,7 +8,7 @@ optional (None = inherit policy-level). Resolution rules:
   rule.audit_only=None  -> inherit policy.audit_only (default behavior)
 
 Backward compat: a policy without per-rule overrides behaves identically
-to the Day 8 implementation (policy-level audit_only applies to all rules).
+to the v1 implementation (policy-level audit_only applies to all rules).
 """
 
 from __future__ import annotations
@@ -41,7 +41,7 @@ def _ctx() -> ActionContext:
 
 
 def test_policy_level_audit_only_still_works(tmp_path: Path) -> None:
-    """Day-8 behavior: policy.audit_only=True with no per-rule overrides
+    """v1 behavior: policy.audit_only=True with no per-rule overrides
     behaves like the original audit-only mode."""
     log = tmp_path / "audit.log"
     writer = AuditWriter(log)

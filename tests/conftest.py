@@ -1,7 +1,8 @@
 """Shared test fixtures.
 
-Test data is synthetic. No real customer PII anywhere; per CLAUDE.md
-quality standards, fixtures use generators or obviously-fake values.
+Test data is synthetic. No real customer PII anywhere; fixtures use
+generators or obviously-fake values (RFC-2606-reserved domains,
+documented AWS example keys, openssl-generated PEMs).
 """
 
 from __future__ import annotations

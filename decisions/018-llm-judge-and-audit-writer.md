@@ -2,18 +2,18 @@
 
 **Date:** 2026-05-04
 **Status:** Accepted
-**Phase:** Day 8 (LLM judge + audit writer)
+**Phase:** v1 (LLM judge + audit writer)
 **Author:** Claude Code (autonomous)
 
 ---
 
 ## Context
 
-Day 8 brief landed two adjacent observability / detection items in one
+the v1 plan landed two adjacent observability / detection items in one
 phase:
 
-1. **LLM judge** as the real fourth-stage detector. Day 6-7 shipped a
-   skeleton that refused to instantiate; Day 8 needed the real Ollama-
+1. **LLM judge** as the real fourth-stage detector. v1 shipped a
+   skeleton that refused to instantiate; v1 needed the real Ollama-
    backed implementation with timeout handling, robust JSON parsing,
    and a default-off configuration.
 2. **Audit log writer** that wires the existing `audit_only` policy
@@ -154,7 +154,7 @@ Default destination `./promptguard-audit.log`, configurable via
   into their tool of choice.
 - The fuzz test runs 200 iterations. Stronger guarantees come from
   property-based testing (`hypothesis`); deferring to v1.1 per the
-  Day-8 brief's stdlib constraint.
+  the v1 plan's stdlib constraint.
 
 ### Revisit if (LLM judge)
 - An operator reports that vLLM / llama.cpp / Hugging Face TGI is the
@@ -180,6 +180,6 @@ Default destination `./promptguard-audit.log`, configurable via
   fuzz). Wired into `ActionEngine` via constructor params; wired into
   `PromptGuardHook.from_env` via `PROMPTGUARD_AUDIT_LOG_PATH`.
 - The `LLMJudgeNotImplemented` exception class stays exported for
-  backwards compat with the Day 6-7 stub-import path; it now subclasses
+  backwards compat with the v1 stub-import path; it now subclasses
   `NotImplementedError` but is never raised.
 - 195 tests pass total.

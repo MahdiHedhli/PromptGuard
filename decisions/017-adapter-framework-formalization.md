@@ -2,20 +2,20 @@
 
 **Date:** 2026-05-04
 **Status:** Accepted
-**Phase:** Day 6-7 (adapter framework completion)
+**Phase:** v1 (adapter framework completion)
 **Author:** Claude Code (autonomous)
 
 ---
 
 ## Context
 
-Day 1-5 shipped reference adapters as duck-typed Protocols (`Detector`,
+v1 shipped reference adapters as duck-typed Protocols (`Detector`,
 `PolicyAdapter`). They worked. But contributors adding a new detector
 or policy source had no single place documenting the contract; tests
 were per-adapter rather than parametrized; the LLMJudgeDetector existed
 only in a stub file with no class.
 
-Day 6-7 brief: formalize the abstract base classes, document the
+the v1 plan: formalize the abstract base classes, document the
 contracts, audit existing implementations against the contracts, and
 ship Purview + ICAP as PoC stubs with sample fixtures so the adapter
 framework is observable in the codebase.
@@ -57,7 +57,7 @@ Ship `LLMJudgeDetector` as a v1 skeleton class that subclasses the ABC
 and refuses to instantiate (raises `LLMJudgeNotImplemented` with the
 exact escape-hatch message). The pipeline factory already refuses to
 construct one; the class refuses too. Belt + braces. Real implementation
-lands Day 8.
+lands v1.
 
 Ship `PurviewDLPPolicy` as a real adapter that loads a JSON SIT export
 and translates to PromptGuard `Policy`. Sample fixture

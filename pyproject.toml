@@ -9,7 +9,7 @@ description = "Local LLM proxy that prevents PII and sensitive data from leaving
 readme = "README.md"
 requires-python = ">=3.11"
 license = { file = "LICENSE" }
-authors = [{ name = "Mahdi Hedhli", email = "mhedhli@42-corp.com" }]
+authors = [{ name = "Mahdi Hedhli", email = "16087011+MahdiHedhli@users.noreply.github.com" }]
 keywords = ["llm", "dlp", "pii", "proxy", "security", "privacy"]
 classifiers = [
     "Development Status :: 3 - Alpha",

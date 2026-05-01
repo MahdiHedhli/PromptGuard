@@ -93,7 +93,7 @@ _CATEGORY_MAP: dict[str, Category] = {c.value: c for c in Category}
 
 class LLMJudgeNotImplemented(NotImplementedError):
     """Kept as a re-export for callers that imported the v1 stub. The
-    Day-8 implementation no longer raises; this class exists so existing
+    v1 implementation no longer raises; this class exists so existing
     `from ... import LLMJudgeNotImplemented` does not break."""
 
 

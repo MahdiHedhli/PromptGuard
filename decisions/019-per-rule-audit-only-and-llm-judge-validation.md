@@ -2,7 +2,7 @@
 
 **Date:** 2026-05-06
 **Status:** Accepted
-**Phase:** Day 9 (benchmarks + shipping prep)
+**Phase:** v1 (benchmarks + shipping prep)
 **Author:** Claude Code (autonomous)
 
 ---
@@ -10,16 +10,16 @@
 ## Context
 
 Two adjacent decisions logged together because they were resolved in
-the same Day 9 morning window:
+the same v1 morning window:
 
-1. The Day-8 daily report flagged that `audit_only` was a top-level
-   policy field but the brief described per-rule semantics. Day-9 brief
+1. The v1 daily report flagged that `audit_only` was a top-level
+   policy field but the brief described per-rule semantics. the v1 plan
    approved the schema extension. Operator workflow is "audit-only this
    one rule for two weeks then promote," which requires per-rule
    granularity.
-2. The Day-8 daily report flagged that the LLM judge was implementation-
+2. The v1 daily report flagged that the LLM judge was implementation-
    verified (11 mocked unit tests) but not detection-verified (no real
-   Ollama call producing a finding). The Day-9 brief mandated a
+   Ollama call producing a finding). The the v1 plan mandated a
    morning diagnostic before benchmarks: judge must produce >=1
    detection on obvious paraphrased PII, and pipeline latency must be
    measurably higher with judge enabled vs disabled. Failure to meet
@@ -36,7 +36,7 @@ the same Day 9 morning window:
 2. Otherwise inherit `Policy.audit_only` (default `False`).
 
 Backward compat: a policy without per-rule overrides behaves
-identically to the Day-8 implementation. A policy with
+identically to the v1 implementation. A policy with
 `audit_only: true` at the top level applies to all rules unless a
 rule explicitly sets `audit_only: false`.
 
@@ -72,7 +72,7 @@ policy-level True, mixed audit+enforce on a single request, the
 
 ### Diagnostic results
 
-Ran the Day-9-mandated diagnostic at `local/scratch/llm_judge_diagnostic.py`.
+Ran the v1-mandated diagnostic at `local/scratch/llm_judge_diagnostic.py`.
 Wiring is verified; detection is not.
 
 **Setup:** Native Ollama on macOS (Metal GPU acceleration). Tested two
@@ -109,13 +109,13 @@ models do not produce reliably-shaped, content-correct findings.
 Larger models (8B+) might work, but the v1 design point ("small,
 fast, local LLM as a backstop") rules them out. Improving the prompt
 template is possible (few-shot examples, stricter format requirement)
-but not within the Day-9 timebox.
+but not within the v1 timebox.
 
 ### Decision
 
 Ship the LLM judge **shipped but not validated** at v1. Concrete:
 
-- Adapter code stays as Day 8 wired it. Default-off in policy.
+- Adapter code stays as v1 wired it. Default-off in policy.
 - `docs/llm-judge.md` already documents enable/disable, recommended
   models, and tolerance posture (zero findings on parse failure +
   warning log).
@@ -124,7 +124,7 @@ Ship the LLM judge **shipped but not validated** at v1. Concrete:
   detections on the test prompts above. They will see no false
   positives (the model produces nothing the parser accepts) and they
   will catch nothing the regex/OPF/Presidio stages missed.
-- Day 9 benchmarks run with judge disabled. The benchmark matrix loses
+- v1 benchmarks run with judge disabled. The benchmark matrix loses
   the layered+judge column; we cite the diagnostic instead.
 - v1.1 work item: prompt-template iteration with few-shot examples
   and a smaller-but-tuned model (e.g. fine-tuned llama3.2:3B for the
@@ -158,5 +158,5 @@ Ship the LLM judge **shipped but not validated** at v1. Concrete:
   factor). This is a deployment note worth surfacing in v1.1
   packaging documentation.
 - `docs/llm-judge.md` should be updated with the "shipped but not
-  validated at v1" status; deferring the doc-edit to the Day 9
+  validated at v1" status; deferring the doc-edit to the v1
   benchmarks docs work since both touch operator-facing material.

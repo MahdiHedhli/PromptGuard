@@ -2,14 +2,14 @@
 
 **Date:** 2026-04-30
 **Status:** Accepted
-**Phase:** Day 1 (scaffold)
+**Phase:** v1 (scaffold)
 **Author:** Claude Code (autonomous)
 
 ---
 
 ## Context
 
-Day 1 needed a build/dep tooling choice before any code was written. The project has 14 calendar days and ships an open-source repo aimed at security engineers; tooling choices should be conventional, reproducible, and not create friction for contributors.
+v1 needed a build/dep tooling choice before any code was written. The project has 14 calendar days and ships an open-source repo aimed at security engineers; tooling choices should be conventional, reproducible, and not create friction for contributors.
 
 Constraints:
 - Apache 2.0 deps only.

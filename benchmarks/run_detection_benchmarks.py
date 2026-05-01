@@ -1,4 +1,4 @@
-"""Detection benchmarks (Day 9).
+"""Detection benchmarks (v1).
 
 Methodology:
   We run a synthetic corpus of PII / secret examples through each
@@ -14,7 +14,7 @@ the spans we synthesized; the F1 number captures recall, precision,
 and (importantly) cross-category confusion.
 
 Why synthetic and not AI4Privacy / arxiv 2410.23657:
-  Day-9 brief explicitly authorizes corpus fallback:
+  the v1 plan explicitly authorizes corpus fallback:
   "If GitHub Issues Secrets is gated: fall back to detect-secrets test
   fixtures (Apache 2.0), gitleaks example fixtures (MIT), or synthetic
   supplement. Methodology section is honest about substitutions."
@@ -22,7 +22,7 @@ Why synthetic and not AI4Privacy / arxiv 2410.23657:
   We pull from gitleaks + detect-secrets-shaped patterns and build the
   synthetic corpus locally. AI4Privacy on HF requires the `datasets`
   package; adding it would be a soft-checkpoint flag (new dep) that we
-  judged not worth the day-9 budget. Tonic's published OPF numbers
+  judged not worth the v1 budget. Tonic's published OPF numbers
   serve as the external sanity check; we cite them in benchmarks.md.
 
 Output:

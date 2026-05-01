@@ -2,7 +2,7 @@
 
 **Date:** 2026-05-03
 **Status:** Accepted
-**Phase:** Day 4 (Day 3 carryover closure)
+**Phase:** v1 (v1 carryover closure)
 **Author:** Claude Code (autonomous)
 
 ---
@@ -15,11 +15,11 @@ its backing database; without a configured `database_url`, the path
 errors with `400 {"error":{"message":"No connected db.",...}}`. The
 request never reaches the PromptGuard pre-call hook.
 
-Day-3 daily report flagged two paths to fix this:
+v1 daily report flagged two paths to fix this:
 1. Set `general_settings.allow_requests_on_db_unavailable: true`.
 2. Strip `?beta=true` at proxy ingress.
 
-Mahdi picked option 1 in the Day-4 brief.
+Mahdi picked option 1 in the v1 plan.
 
 PromptGuard's threat model treats the proxy as a per-developer local
 process. We do not use LiteLLM's spend tracking, virtual-key issuance,
@@ -34,7 +34,7 @@ matters.
 ### Option 1: `allow_requests_on_db_unavailable: true` (chosen)
 - Pros: One-line config change. Documented LiteLLM setting. Lets the
   CLI request reach our pre-call hook; from there everything works as
-  for the curl-based path that was already validated on Day 3.
+  for the curl-based path that was already validated on v1.
 - Cons: Disables LiteLLM's spend-tracking / virtual-key features. We
   do not use them.
 
@@ -61,14 +61,14 @@ Set `general_settings.allow_requests_on_db_unavailable: true` in
 - `claude` CLI v2.x sessions through the proxy work end-to-end.
 - The pre-call hook fires on the `?beta=true` route, so PromptGuard
   policy applies uniformly across all clients.
-- Day-4 real-key live test can run.
+- v1 real-key live test can run.
 
 ### Constrains
 - LiteLLM's spend-tracking + virtual-key features remain disabled. v1
   did not use them; v1.1 may want them back if a shared / team mode is
   introduced.
 - A future LiteLLM version may rename or reinterpret this config flag.
-  Pinning the LiteLLM image digest at packaging polish (Day 10) is the
+  Pinning the LiteLLM image digest at packaging polish (v1) is the
   belt-and-braces fix.
 
 ### Revisit if

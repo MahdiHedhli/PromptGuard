@@ -2,14 +2,14 @@
 
 **Date:** 2026-05-02
 **Status:** Accepted
-**Phase:** Day 3 (reversible TOKENIZE)
+**Phase:** v1 (reversible TOKENIZE)
 **Author:** Claude Code (autonomous)
 
 ---
 
 ## Context
 
-Day-3 streaming reverse path needs to handle SSE responses where a token
+v1 streaming reverse path needs to handle SSE responses where a token
 issued by the proxy can be fragmented across many `content_block_delta`
 events. The mock upstream chunks at four-character boundaries to mimic
 the worst-case Anthropic behavior, so a token like

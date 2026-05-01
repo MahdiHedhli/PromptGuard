@@ -2,14 +2,14 @@
 
 **Date:** 2026-04-30
 **Status:** Accepted
-**Phase:** Day 1 (scaffold)
+**Phase:** v1 (scaffold)
 **Author:** Claude Code (autonomous)
 
 ---
 
 ## Context
 
-The locked architecture (research-notes section 6) specifies OPF as a default detector alongside Presidio. The Day-1 deliverable lists "OPF as a local model server (HF Transformers, CPU mode default, GPU optional)" packaged via `docker-compose`.
+The locked architecture (research-notes section 6) specifies OPF as a default detector alongside Presidio. The v1 deliverable lists "OPF as a local model server (HF Transformers, CPU mode default, GPU optional)" packaged via `docker-compose`.
 
 OPF was released 2026-04-22 by OpenAI under Apache 2.0. There is no pre-built first-party container at the time of writing. Two integration options:
 

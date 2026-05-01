@@ -5,7 +5,7 @@ PromptGuard has two adapter layers, each with its own contract:
 1. **Detectors** decide what is sensitive. Output is a list of spans.
 2. **Policy sources** decide what to do about it. Output is a `Policy`.
 
-This document is the operator-facing spec for both. Day 6-7's deliverable.
+This document is the operator-facing spec for both. a v1 deliverable.
 
 ## Detector adapters
 
@@ -14,7 +14,7 @@ DetectorAdapter (abstract base)
 ├── RegexDetector              # in-process; deterministic shape match
 ├── OPFDetector                # HTTP -> opf-service container
 ├── PresidioDetector           # HTTP -> presidio-analyzer container
-└── LLMJudgeDetector           # skeleton at v1; real impl Day 8
+└── LLMJudgeDetector           # skeleton at v1; real impl v1
 ```
 
 ### Contract

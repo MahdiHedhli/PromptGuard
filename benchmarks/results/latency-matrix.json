@@ -27,6 +27,6 @@
     "engine_overhead_avg_ms": 0.1591
   },
   "n_samples": 1000,
-  "notes": "All measurements in-process on Apple Silicon (M-series) CPython 3.11. OPF and Presidio require running services and are characterized in the latency narrative; their HTTP hop adds 1-3 ms over loopback when warm. End-to-end through the LiteLLM proxy adds a further ~12 ms fixed overhead (Day 5 measurement) that is LiteLLM, not PromptGuard.",
+  "notes": "All measurements in-process on Apple Silicon (M-series) CPython 3.11. OPF and Presidio require running services and are characterized in the latency narrative; their HTTP hop adds 1-3 ms over loopback when warm. End-to-end through the LiteLLM proxy adds a further ~12 ms fixed overhead (v1 measurement) that is LiteLLM, not PromptGuard.",
   "prompt_length_chars": 305
 }

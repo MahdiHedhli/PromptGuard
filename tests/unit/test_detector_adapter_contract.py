@@ -12,7 +12,7 @@ shipped adapters and asserts:
 
 OPF and Presidio are HTTP-backed; we mock them via respx so the test
 runs without the docker stack. LLMJudgeDetector is asserted to refuse
-instantiation at v1 (skeleton; real impl Day 8).
+instantiation at v1 (skeleton; real impl v1).
 """
 
 from __future__ import annotations
@@ -195,13 +195,13 @@ def test_aclose_default_no_op_on_base() -> None:
 
 
 def test_llm_judge_instantiates_with_documented_defaults() -> None:
-    """Day 8 wires the real implementation. Construction succeeds; the
+    """v1 wires the real implementation. Construction succeeds; the
     adapter is tolerant of Ollama being unreachable at request time
     (returns zero detections + warning, does not fail the pipeline)."""
     judge = LLMJudgeDetector()
     assert judge.name == "llm_judge"
     # The legacy stub class still exports under the same name for
-    # callers that imported it before Day 8.
+    # callers that imported it before v1.
     assert issubclass(LLMJudgeNotImplemented, NotImplementedError)
 
 

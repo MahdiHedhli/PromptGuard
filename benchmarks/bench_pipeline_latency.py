@@ -1,8 +1,8 @@
 """Latency benchmark: detection + action engine on a synthetic PII prompt.
 
 Compares:
-  * Day-1 baseline: RegexDetector raw `detect_sync` over the prompt
-  * Day-2 path:    DetectionPipeline (regex only) + ActionEngine.apply
+  * v1 baseline: RegexDetector raw `detect_sync` over the prompt
+  * v1 path:    DetectionPipeline (regex only) + ActionEngine.apply
                    with the default policy. Includes JSON-safe extract /
                    rewrite via the proxy.messages helpers.
 

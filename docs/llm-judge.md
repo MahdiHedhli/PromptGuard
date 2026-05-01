@@ -49,7 +49,7 @@ you have an Ollama container in your stack; see deployment notes).
 
 ## False positive / false negative tendencies
 
-Day-9 benchmarks will quote concrete F1 numbers. Expected behavior
+v1 benchmarks will quote concrete F1 numbers. Expected behavior
 based on early integration testing:
 
 - **FP**: small models tend to over-flag generic phrases as "secret"

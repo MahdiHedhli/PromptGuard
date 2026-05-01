@@ -1,11 +1,9 @@
 """Build a `DetectionPipeline` from a `Policy` with hard-fail OPF readiness.
 
-Mahdi's directive (Day 2): if a policy enables OPF and the OPF service is
-unavailable, refuse to start the pipeline. PromptGuard's promise is that
-PII never leaves the host; silently degrading to "OPF disabled" would
-break that promise without operator awareness.
-
-The exact error string is the one specified in the Day-2 brief.
+Design rule: if a policy enables OPF and the OPF service is unavailable,
+refuse to start the pipeline. PromptGuard's promise is that PII never
+leaves the host; silently degrading to "OPF disabled" would break that
+promise without operator awareness.
 """
 
 from __future__ import annotations
@@ -91,7 +89,7 @@ def build_pipeline_from_policy(
         detectors.append(PresidioDetector(base_url=presidio_url))
 
     if policy.detectors.llm_judge.enabled:
-        # Day 8 wires the real LLMJudgeDetector. Operators must run an
+        # v1 wires the real LLMJudgeDetector. Operators must run an
         # Ollama server reachable at PROMPTGUARD_OLLAMA_URL; the adapter
         # itself is tolerant (timeouts and HTTP errors return zero
         # detections) so the pipeline does not hard-fail on transient

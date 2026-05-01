@@ -13,7 +13,7 @@ services:
     build:
       context: .
       dockerfile: docker/litellm/Dockerfile
-      # LITELLM_DIGEST pinned in docker/litellm/Dockerfile (Day-10
+      # LITELLM_DIGEST pinned in docker/litellm/Dockerfile (v1
       # packaging polish, DEC-021). To override during dev, set
       # the build arg here.
     image: promptguard-litellm:dev

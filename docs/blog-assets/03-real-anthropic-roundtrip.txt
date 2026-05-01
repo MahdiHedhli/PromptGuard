@@ -3,6 +3,24 @@
 === Policy: regex-only ===
 === Stack: PromptGuard proxy + real api.anthropic.com upstream + claude CLI v2.1 ===
 
+WHAT THIS ARTIFACT PROVES, AND WHAT IT DOES NOT
+  Proves: the upstream LLM did NOT see the user's literal 10.0.13.42.
+          Claude's response contains a different RFC-1918 example
+          (10.0.0.1), which is the model paraphrasing what was, from
+          its point of view, an opaque token. A model that received
+          the original IP would have echoed it.
+  Does NOT prove: that PromptGuard's reverse path substituted a
+          token back into the response. Because the model paraphrased,
+          there was no token in the response for the reverse path to
+          act on. The reverse path's correctness is asserted by tests
+          (`tests/unit/test_streaming_restorer.py`) and by the
+          deterministic-mock pair in assets 01 + 02; this artifact
+          adds the upstream-traffic half of the proof, nothing more.
+  The canonical end-to-end visual (real upstream AND model-echoes-
+  token AND visible restoration on the user side) is captured as
+  asset 04 once the v1.1 streaming TOKENIZE path lands.
+
+
 USER INVOCATION (terminal):
   $ ANTHROPIC_BASE_URL=http://localhost:4100 \
       ANTHROPIC_AUTH_TOKEN=sk-promptguard-dev \

@@ -2,14 +2,14 @@
 
 **Date:** 2026-05-07
 **Status:** Accepted
-**Phase:** Day 10 (independent wire verification)
+**Phase:** v1 (independent wire verification)
 **Author:** MahdiHedhli
 
 ---
 
 ## Context
 
-Day-10 brief introduced an explicit owner requirement: independently
+the v1 plan introduced an explicit owner requirement: independently
 verify what bytes actually leave the machine. The test suite asserts
 correctness. Benchmarks measure detection F1. The audit log carries
 forensic events. None of those show you what went out on the wire.

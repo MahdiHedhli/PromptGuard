@@ -12,7 +12,7 @@
 
 ### Corpus
 
-We use a synthetic corpus of 220 examples (160 positive across 8 detector-coverable categories, 60 negative-control prompts). Day 9 brief authorized this fallback because the AI4Privacy PII-Masking-300k corpus on Hugging Face requires the `datasets` package and an authenticated download path that did not fit the v1 budget. Tonic's published numbers on AI4Privacy serve as the external sanity check; we do not re-run their evaluation on the same corpus.
+We use a synthetic corpus of 220 examples (160 positive across 8 detector-coverable categories, 60 negative-control prompts). the v1 plan authorized this fallback because the AI4Privacy PII-Masking-300k corpus on Hugging Face requires the `datasets` package and an authenticated download path that did not fit the v1 budget. Tonic's published numbers on AI4Privacy serve as the external sanity check; we do not re-run their evaluation on the same corpus.
 
 The synthetic corpus is generated locally by `benchmarks/run_detection_benchmarks.py::_synth_corpus()`. Each positive example is structured as `<prefix><PII span><suffix>` so the expected span position is known at construction time. Negative examples are plain prose containing no PII shapes.
 
@@ -22,14 +22,14 @@ The numbers below are for the regex layer running in isolation. OPF and Presidio
 
 ### Latency
 
-In-process measurements on Apple Silicon CPython 3.11. Each configuration runs n=1000 with a 305-char prompt containing 5 distinct PII spans (email, IP, DB URL, JWT, AWS key). End-to-end-through-proxy numbers come from the Day-5 measurement and are dominated by LiteLLM's request handling, not PromptGuard's overhead.
+In-process measurements on Apple Silicon CPython 3.11. Each configuration runs n=1000 with a 305-char prompt containing 5 distinct PII spans (email, IP, DB URL, JWT, AWS key). End-to-end-through-proxy numbers come from the v1 measurement and are dominated by LiteLLM's request handling, not PromptGuard's overhead.
 
 ### Honesty notes
 
 * **Synthetic-corpus framing.** Numbers below come from a corpus we generated. The shapes match real-world examples (gitleaks rules, detect-secrets fixtures), but the corpus is small and not adversarially constructed. Tonic's AI4Privacy numbers, which we do NOT re-run here, would give a more conservative recall estimate especially on the OPF layer.
 * **Cross-category overlap.** A postgres URL like `postgres://user:p@db.example.com/app` matches both the database_url category AND the domain category. Our scoring treats the domain hit as a "false positive for domain" because the synth corpus only declared the URL span as expected. Real evaluation in v1.1 should annotate ALL valid spans per example.
-* **OPF / Presidio not measured here.** Their HTTP-hop costs are characterized below from Day-5 instrumentation, not from a corpus run.
-* **No real-time corpus run against AI4Privacy.** Authorized fallback per Day-9 brief.
+* **OPF / Presidio not measured here.** Their HTTP-hop costs are characterized below from v1 instrumentation, not from a corpus run.
+* **No real-time corpus run against AI4Privacy.** Authorized fallback per the v1 plan.
 
 ## Detection results
 
@@ -77,7 +77,7 @@ In dev testing across this sprint, OPF (loaded against `openai/privacy-filter`) 
 Engine + JSON-safe extract / rewrite overhead: +0.159 ms avg.
 Audit writer overhead (JSONL file I/O): +0.301 ms avg.
 
-### Through the proxy (Day 5 measurement)
+### Through the proxy (v1 measurement)
 
 | Path | avg | p95 | p99 |
 |---|---:|---:|---:|
@@ -129,7 +129,7 @@ PYTHONPATH=src .venv/bin/python benchmarks/run_detection_benchmarks.py
 # Latency matrix
 PYTHONPATH=src .venv/bin/python benchmarks/run_latency_matrix.py
 
-# Day-1 -> Day-2 latency progression (older script kept for traceability)
+# v1 -> v1 latency progression (older script kept for traceability)
 PYTHONPATH=src .venv/bin/python benchmarks/bench_pipeline_latency.py
 ```
 

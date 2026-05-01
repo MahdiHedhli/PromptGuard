@@ -180,7 +180,7 @@ PATTERNS: tuple[PatternSpec, ...] = (
         source="presidio:EmailRecognizer (shape)",
     ),
     # ---- Domain ----------------------------------------------------------
-    # Conservative TLD list for Day 1; broaden in v1.1 with a public-suffix list.
+    # Conservative TLD list for v1; broaden in v1.1 with a public-suffix list.
     PatternSpec(
         name="domain",
         category=Category.DOMAIN,

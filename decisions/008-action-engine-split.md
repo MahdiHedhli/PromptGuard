@@ -2,16 +2,16 @@
 
 **Date:** 2026-05-01
 **Status:** Accepted
-**Phase:** Day 2 (action engine + LiteLLM hook)
+**Phase:** v1 (action engine + LiteLLM hook)
 **Author:** Claude Code (autonomous)
 
 ---
 
 ## Context
 
-Day 2 brief specified one action class per action type at
+the v1 plan specified one action class per action type at
 `src/promptguard/actions/`: `base.py`, `block.py`, `mask.py`, `tokenize.py`,
-`engine.py`. Day 1 shipped a single `engine.py` whose `decide()` method
+`engine.py`. v1 shipped a single `engine.py` whose `decide()` method
 returned a list of `(detection, action)` decisions without rewriting.
 
 We needed to land:
@@ -63,18 +63,18 @@ suffix in the rewritten text.
 ### Enables
 - Each action gets its own test file shape.
 - TokenMap is owned by TokenizeAction and the engine, not scattered.
-- Future post-call response rewriting (Day 3-4 reverse path) plugs into
+- Future post-call response rewriting (v1 reverse path) plugs into
   TokenMap.restore directly without engine changes.
 
 ### Constrains
-- The "frozen public shape" of `EngineResult` (Day 1 DEC-004) is now
-  load-bearing. Day 1's `ActionDecision`/`ActionOutcome` are gone; the
-  Day-2 names are `ActionResult`/`EngineResult`. Per CLAUDE.md "Avoid
+- The "frozen public shape" of `EngineResult` (v1 DEC-004) is now
+  load-bearing. v1's `ActionDecision`/`ActionOutcome` are gone; the
+  v1 names are `ActionResult`/`EngineResult`. Per CLAUDE.md "Avoid
   backwards-compatibility hacks", we did not export old names.
 
 ### Revisit if
 - The engine grows enough conditionals to argue for the strategy
-  pattern. Day 3-4 streaming work is the next likely pressure point.
+  pattern. v1 streaming work is the next likely pressure point.
 
 ## Implementation notes
 

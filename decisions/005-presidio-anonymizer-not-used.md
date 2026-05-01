@@ -2,14 +2,14 @@
 
 **Date:** 2026-04-30
 **Status:** Accepted
-**Phase:** Day 1 (scaffold)
+**Phase:** v1 (scaffold)
 **Author:** Claude Code (autonomous)
 
 ---
 
 ## Context
 
-The bootstrap prompt lists "Presidio analyzer + anonymizer (containerized)" as a Day-1 service. Microsoft Presidio ships two complementary services: the analyzer (detects entity spans) and the anonymizer (rewrites them according to operators).
+The bootstrap prompt lists "Presidio analyzer + anonymizer (containerized)" as a v1 service. Microsoft Presidio ships two complementary services: the analyzer (detects entity spans) and the anonymizer (rewrites them according to operators).
 
 Our action engine has its own semantics (BLOCK / MASK / TOKENIZE) with specific properties that Presidio's anonymizer vocabulary does not directly model:
 - TOKENIZE is reversible per-conversation. Tokens are unguessable random IDs scoped to a conversation; restoration is pure substitution by the proxy on the streamed response.
@@ -26,7 +26,7 @@ PromptGuard runs Presidio Analyzer only. The anonymizer service is not in the do
 
 ### Enables
 - Single source of truth for action semantics. The threat-model claims about reversibility, ledger ownership, and per-conversation scoping live in our code, not in Presidio's.
-- Easier to reason about TOKENIZE attack surface (DEC- forthcoming on Day 3-4).
+- Easier to reason about TOKENIZE attack surface (DEC- forthcoming on v1).
 
 ### Constrains
 - We give up Presidio anonymizer's tested operator set; we re-implement equivalents under our semantics.

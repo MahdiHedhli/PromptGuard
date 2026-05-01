@@ -86,7 +86,7 @@ def test_pipeline_factory_zero_detectors_raises() -> None:
 
 
 def test_pipeline_factory_llm_judge_enabled_constructs_judge_at_v1() -> None:
-    """Day 8: enabling llm_judge constructs the LLMJudgeDetector. The
+    """v1: enabling llm_judge constructs the LLMJudgeDetector. The
     adapter is tolerant of Ollama being unreachable at request time
     (timeout / HTTP error returns zero detections, does not fail the
     pipeline), so the factory does not need a runtime readiness probe

@@ -158,7 +158,7 @@ License caveat documented in README and blog post.
 
 ## 10. Open Questions (current)
 
-1. **Streaming buffer size N.** Default to 256 chars? Tradeoff between tail latency and token-mapping precision. Empirical tune during day 3-4.
+1. **Streaming buffer size N.** Default to 256 chars? Tradeoff between tail latency and token-mapping precision. Empirical tune during v1.
 2. **OPF model storage.** ~3GB on first run. Ship Docker image with model baked in (large image, fast first run) or download on first start (small image, slow first run)? Probably download-on-start with a clear progress indicator.
 3. **Source code blocks.** High-density secret real estate. Treat differently or rely on standard detectors? My instinct: same detectors but heightened sensitivity threshold inside fenced code blocks.
 4. **False-positive UX.** When proxy masks something the user didn't intend, what's the developer experience? Inline notification, audit log, override mechanism. v1 ships audit log + visible inline notification; override deferred to v1.1.

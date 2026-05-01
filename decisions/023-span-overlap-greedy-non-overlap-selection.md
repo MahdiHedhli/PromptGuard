@@ -2,7 +2,7 @@
 
 **Date:** 2026-04-30
 **Status:** Accepted
-**Phase:** Day 10 (independent wire verification)
+**Phase:** v1 (independent wire verification)
 **Author:** MahdiHedhli
 
 ---

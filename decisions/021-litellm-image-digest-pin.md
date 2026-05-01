@@ -2,20 +2,20 @@
 
 **Date:** 2026-05-07
 **Status:** Accepted
-**Phase:** Day 10 (packaging polish)
+**Phase:** v1 (packaging polish)
 **Author:** MahdiHedhli
 
 ---
 
 ## Context
 
-Day-1 daily report flagged "LiteLLM image is `main-stable` floating tag;
-want a digest pin pre-ship?" as an open question. Day-10 brief approved
+v1 daily report flagged "LiteLLM image is `main-stable` floating tag;
+want a digest pin pre-ship?" as an open question. the v1 plan approved
 the pin as packaging polish.
 
 A floating tag like `main-stable` resolves to whatever digest the
 upstream registry has at pull time. Builds against the same Dockerfile
-on different days can produce different runtime behavior. The Day-1
+on different days can produce different runtime behavior. The v1
 DEC-002 already cited reproducibility as a v1.1 / packaging-polish
 concern; this DEC closes it.
 
@@ -25,7 +25,7 @@ Pin via SHA-256 digest in `docker/litellm/Dockerfile`:
 
   FROM ghcr.io/berriai/litellm@sha256:<digest>
 
-The pinned digest is the one we built against on Day 9 (Day-9 daily
+The pinned digest is the one we built against on v1 (v1 daily
 report includes the cold-start measurement, which would otherwise be
 unreproducible). To bump: `docker pull ghcr.io/berriai/litellm:main-stable`,
 read the resolved digest from `docker images --digests`, replace the
@@ -35,7 +35,7 @@ read the resolved digest from `docker images --digests`, replace the
 
 ### Enables
 - Reproducible builds across machines and dates.
-- Day-9 cold-start, latency, and integration test numbers are
+- v1 cold-start, latency, and integration test numbers are
   reproducible by anyone who clones the repo.
 
 ### Constrains
