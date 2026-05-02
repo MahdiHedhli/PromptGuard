@@ -314,3 +314,100 @@ def test_sse_walks_nested_strings() -> None:
     out = s.feed(event) + s.end()
     decoded = out.decode("utf-8")
     assert "alice@example.com" in decoded
+
+
+# -- Phase 5: content-block-granular guarantees --------------------
+
+
+def test_restore_sse_blob_preserves_event_type_headers() -> None:
+    """Every `event:` header line in the upstream stream must survive
+    the rebuild verbatim. v1.1 phase 5: the brief lists "event types
+    preserved" as a Phase-5 test obligation independent of payload."""
+    from promptguard.proxy.streaming import restore_sse_blob
+
+    tm = TokenMap()
+    tok = tm.issue("c", Category.EMAIL, "alice@example.com")
+    sse = (
+        b"event: message_start\n"
+        b'data: {"type":"message_start","message":{"id":"msg_x"}}\n\n'
+        b"event: content_block_start\n"
+        b'data: {"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}\n\n'
+        b"event: content_block_delta\n"
+        b'data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"to ' + tok.encode() + b'"}}\n\n'
+        b"event: content_block_stop\n"
+        b'data: {"type":"content_block_stop","index":0}\n\n'
+        b"event: message_delta\n"
+        b'data: {"type":"message_delta","delta":{"stop_reason":"end_turn"}}\n\n'
+        b"event: message_stop\n"
+        b'data: {"type":"message_stop"}\n\n'
+    )
+    out = restore_sse_blob(tm, "c", sse).decode("utf-8")
+    for header in (
+        "event: message_start",
+        "event: content_block_start",
+        "event: content_block_delta",
+        "event: content_block_stop",
+        "event: message_delta",
+        "event: message_stop",
+    ):
+        assert header in out, f"missing event header: {header}"
+    assert "alice@example.com" in out
+
+
+def test_restore_sse_blob_token_split_across_multiple_deltas() -> None:
+    """A token may straddle several content_block_delta events because
+    the upstream chunks text deltas at small boundaries (sometimes 4-8
+    chars). The rebuild must concatenate deltas before substitution so
+    a token whose suffix never appears in any single event still
+    restores cleanly."""
+    from promptguard.proxy.streaming import restore_sse_blob
+
+    tm = TokenMap()
+    tok = tm.issue("c", Category.INTERNAL_IP, "10.0.13.42")
+    # Split the token at every 4 chars to mimic small-delta upstreams.
+    parts = [tok[i : i + 4] for i in range(0, len(tok), 4)]
+    body = b"event: message_start\ndata: {\"type\":\"message_start\"}\n\n"
+    body += b"event: content_block_start\ndata: " + json.dumps(
+        {
+            "type": "content_block_start",
+            "index": 0,
+            "content_block": {"type": "text", "text": ""},
+        }
+    ).encode() + b"\n\n"
+    for part in parts:
+        body += (
+            b"event: content_block_delta\ndata: "
+            + json.dumps(
+                {
+                    "type": "content_block_delta",
+                    "index": 0,
+                    "delta": {"type": "text_delta", "text": part},
+                }
+            ).encode()
+            + b"\n\n"
+        )
+    body += b"event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\n"
+
+    out = restore_sse_blob(tm, "c", body).decode("utf-8")
+    assert "10.0.13.42" in out
+    # The original token bytes must NOT survive in the rewritten output
+    # (proves we substituted, not just appended).
+    assert tok not in out
+
+
+def test_restore_sse_blob_idempotent_when_no_tokens_match() -> None:
+    """When the conversation's map contains no tokens that appear in the
+    stream, the rebuilder must emit the input bytes unchanged. Collapsing
+    delta events when nothing was substituted breaks claude CLI v2.x's
+    content-block bookkeeping (see DEC-020)."""
+    from promptguard.proxy.streaming import restore_sse_blob
+
+    tm = TokenMap()  # no tokens issued
+    sse = (
+        b"event: content_block_delta\n"
+        b'data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"hello"}}\n\n'
+        b"event: content_block_delta\n"
+        b'data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":" world"}}\n\n'
+    )
+    out = restore_sse_blob(tm, "c", sse)
+    assert out == sse, "no-op rebuild must pass bytes through unchanged"

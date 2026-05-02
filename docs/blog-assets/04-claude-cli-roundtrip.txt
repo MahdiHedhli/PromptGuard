@@ -1,0 +1,101 @@
+=== Real Anthropic round-trip via PromptGuard proxy, end to end ===
+=== Date: 2026-05-02 ===
+=== Stack: PromptGuard proxy (LiteLLM digest-pinned) + real api.anthropic.com upstream + claude CLI v2.1 ===
+=== Policy: default.yaml (TOKENIZE on internal_ip, BLOCK on credentials) ===
+=== Capture: local mitmproxy positioned between LiteLLM and the upstream ===
+
+This artifact captures the full TOKENIZE round-trip: the user types a
+real IP, the upstream LLM never sees it, the LLM echoes the token
+verbatim, the reverse path restores the original to the user's terminal,
+and claude CLI v2.x parses the restored stream without the "Content
+block is not a text block" error that surfaced at v1. It is the
+canonical visual the v1 round-trip artifact (03) deferred.
+
+------------------------------------------------------------
+USER INVOCATION (terminal):
+
+  $ ANTHROPIC_BASE_URL=http://localhost:4100 \
+      ANTHROPIC_AUTH_TOKEN=sk-promptguard-dev \
+      ANTHROPIC_API_KEY=sk-promptguard-dev \
+      claude --print 'Repeat back the exact IP address that appears \
+                       in this sentence, character for character, with \
+                       no commentary: 10.0.13.42'
+
+------------------------------------------------------------
+WHAT THE UPSTREAM ANTHROPIC ACTUALLY SAW (mitmproxy capture, request body):
+
+  POST https://api.anthropic.com/v1/messages
+  ...
+  "messages": [{
+    "content": [{
+      "type": "text",
+      "text": "Repeat back the exact IP address that appears in this
+               sentence, character for character, with no commentary:
+               [INTERNAL_IP_db0530f502d43986]"
+    }],
+    "role": "user"
+  }]
+  ...
+
+  - The literal string "10.0.13.42" is NOT present anywhere in the
+    upstream-bound bytes. (mitmproxy `suspicious_pattern_counts` for
+    `raw_ipv4_rfc1918` is 0 on this flow.)
+
+------------------------------------------------------------
+WHAT THE UPSTREAM RESPONDED WITH (mitmproxy capture, response stream):
+
+  event: content_block_delta
+  data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta",
+         "text":"The IP address in your message has been redacted by the
+                  system and appears"}}
+  event: content_block_delta
+  data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta",
+         "text":" as `[INTERNAL_IP_db0530f502d43986]`. I don't have access
+                  to the original value."}}
+
+  - The model echoed our token VERBATIM in two text-delta events.
+  - The original IP is still NOT in the upstream's response bytes.
+
+------------------------------------------------------------
+USER-VISIBLE TERMINAL OUTPUT (after PromptGuard's reverse path):
+
+  The IP address in your message has been redacted by the system and
+  appears as `10.0.13.42`. I don't have access to the original value.
+
+  - claude CLI v2.x rendered the response with no "Content block is
+    not a text block" error.
+  - The token was substituted back into the streamed text by
+    `restore_sse_blob` in the post-call hook (DEC-014, DEC-020,
+    DEC-023).
+
+------------------------------------------------------------
+WHAT THIS PROVES, EXPLICITLY:
+
+  1. PromptGuard's pre-call hook tokenized the user's IP before
+     forwarding. The upstream never saw the original. (Proven by the
+     mitmproxy capture of the request body.)
+
+  2. The upstream model treated the token as opaque text and echoed
+     it back. The original was never inferred by the model. (Proven
+     by the mitmproxy capture of the response body containing the
+     same token suffix.)
+
+  3. PromptGuard's post-call hook substituted the token back into
+     the streamed response, in real time, without dropping or
+     reordering SSE events. The user-visible output contains the
+     original IP. (Proven by the captured terminal output of
+     claude CLI.)
+
+  4. claude CLI v2.x's SSE parser accepted the restored stream
+     cleanly. The DEC-020 fix (preserving content_block index on
+     rebuild) is on the wire on this flow. (Proven by the absence
+     of the "Content block is not a text block" error in the
+     terminal output.)
+
+------------------------------------------------------------
+TOKEN FORMAT (DEC-012):
+
+  [CATEGORY_<16 hex chars>]
+  Example here: [INTERNAL_IP_db0530f502d43986]
+  Entropy: secrets.token_hex(8) -> 64 bits.
+  Per-conversation map; cross-conversation tokens never restore (A7).

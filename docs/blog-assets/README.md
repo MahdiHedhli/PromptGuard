@@ -22,7 +22,8 @@ The outline numbering tracks `docs/research-notes.md` section 14:
 
 - **[01-tokenize-roundtrip-user-terminal.txt](01-tokenize-roundtrip-user-terminal.txt)**: terminal capture of a real claude CLI session through the PromptGuard proxy. User sees their original IP and hostnames in the response. Slots into **section 8** (TOKENIZE round-trip). Pair with asset 02.
 - **[02-tokenize-roundtrip-upstream-view.json](02-tokenize-roundtrip-upstream-view.json)**: upstream-side capture from the integration test fixture (`mock-anthropic`'s `/_test/last_received` endpoint). Shows what the upstream provider actually received: tokens, never originals. Slots into **section 8** as the "split-screen" visual paired with asset 01.
-- **[03-real-anthropic-roundtrip.txt](03-real-anthropic-roundtrip.txt)**: PARTIAL real-Anthropic capture. The free-tier API key had zero credit on v1 so the upstream returned a "credit balance too low" error before generating a response. The artifact still shows one useful thing for **section 8**: PromptGuard does NOT mangle upstream provider errors. The Anthropic-shaped error reached the user verbatim, which means our error envelope only owns our own BLOCK path; everything else passes through unmodified.
+- **[03-real-anthropic-roundtrip.txt](03-real-anthropic-roundtrip.txt)**: directional capture annotated for honesty. Shows that PromptGuard tokenized the user's IP before the upstream saw it, and that PromptGuard does not mangle upstream provider errors when they happen. Does NOT prove the reverse path because the model paraphrased rather than echoing the token verbatim. See asset 04 for the canonical end-to-end visual.
+- **[04-claude-cli-roundtrip.txt](04-claude-cli-roundtrip.txt)**: canonical end-to-end TOKENIZE round-trip. Real claude CLI v2.x against real api.anthropic.com via the digest-pinned LiteLLM proxy. mitmproxy capture proves the upstream saw the token (not the IP), the model echoed the token verbatim, the reverse path restored the original to the user's terminal, and claude CLI's SSE parser accepted the restored stream without the "Content block is not a text block" error that v1 deferred. Slots into **section 8** as the headline visual.
 
 ## Capture protocol
 
@@ -34,7 +35,6 @@ README stays the master index.
 
 ## Pending captures
 
-- Real-Anthropic full round-trip (deferred until the free-tier account has credit).
-- Latency p50/p95/p99 chart from v1 benchmarks.
-- Side-by-side regex / OPF / Presidio / layered F1 numbers from v1 benchmarks.
+- Latency p50/p95/p99 chart from v1.1 benchmarks.
+- Side-by-side regex / OPF / Presidio / layered F1 numbers from v1.1 benchmarks.
 - Schema-error UX example: `at line 7, column 12 (rules.2.action): ... got 'REJECT'` (slots into the policy-schema sidebar).
