@@ -18,7 +18,7 @@ A developer pastes credentials, a customer record, an internal IP, or a snippet 
 
 A developer is working with client data that the contract prohibits sharing with a third-party LLM provider. The current LLM provider is not covered by the NDA chain.
 
-**Mitigation:** policies can be authored at the org level (via the `GitManifestPolicy` adapter or the Purview / ICAP integrations) so that contract-driven rules apply uniformly across developers and tools, not per-machine.
+**Mitigation:** policies can be authored at the org level (via the `GitManifestPolicy` adapter, or the Purview / ICAP integrations shipped on engagement at v2) so that contract-driven rules apply uniformly across developers and tools, not per-machine.
 
 ### A3. Regulatory exposure
 

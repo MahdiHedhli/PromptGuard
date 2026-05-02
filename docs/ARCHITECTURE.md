@@ -72,8 +72,8 @@ Streams the LLM response, scans for tokens issued during pre-call, and substitut
 |---------------------|----------------------------|-----------------------------------------------|
 | LocalYAMLPolicy     | Reference, default         | Reads `policies/<name>.yaml`                  |
 | GitManifestPolicy   | Adapter framework only     | Pulls signed manifests from a Git repo        |
-| PurviewDLPPolicy    | PoC stub + sample import   | Translates Microsoft Purview SITs to PG rules |
-| ICAPPolicy          | PoC stub + sample fixtures | Routes scan requests through an ICAP server   |
+
+Microsoft Purview and ICAP integrations are deferred to v2 (see [docs/v2-roadmap.md](v2-roadmap.md)); the adapter ABC is the contract those integrations will satisfy when they ship.
 
 ## 3. Data flow, end to end
 
@@ -174,14 +174,14 @@ plug in via the same ABC.
 
 `DetectorAdapter` and `PolicyAdapter` are real ABCs with audit-conformance tests. Every shipped adapter is parametrized through a single conformance test that asserts class-attribute conventions (lowercase `name`, no spaces), output shape invariants, and ABC subclassing. Protocols would document the shape but not enforce it; ABCs let an adapter's instantiation refuse at construction time when the contract is not met.
 
-This is what lets `PurviewDLPPolicy` and `ICAPPolicy` ship as PoC stubs with sample fixtures: the adapter ABCs are the contract real integrations will satisfy when they land.
+The ABC is the contract that v2 integrations (Microsoft Purview Graph API, ICAP) will satisfy when they ship on engagement.
 
 ## 6. What is deliberately out of scope at v1
 
 - Centralized proxy mode for mobile users (v1.1).
 - Browser extension (v1.1 / v2). The local proxy intercepts API traffic only; browser-based ChatGPT / Claude.ai requires a different intercept path.
 - Image and file scanning. v1 inspects text only; image / file content scanning is v1.x.
-- Real Microsoft Purview Graph API and ICAP server integration. v1 ships the adapter ABCs and PoC fixtures; real network calls land later.
+- Real Microsoft Purview Graph API and ICAP server integration. v1.1 ships the adapter ABCs; real network calls are v2 deliverables shipped on engagement.
 - Code-block-aware detection thresholds. v1 treats all text uniformly.
 - Per-request policy override (e.g., `x-promptguard-policy: pentest-engagement`). The threat model rejects per-request overrides as too easy to abuse.
 - Audit log rotation. v1 has the writer; rotation is the operator's concern (logrotate works on the JSONL file).

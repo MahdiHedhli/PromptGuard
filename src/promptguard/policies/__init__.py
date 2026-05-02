@@ -1,4 +1,6 @@
-"""Policy adapters. v1 ships LocalYAML as reference; Git/Purview/ICAP scaffolded."""
+"""Policy adapters. v1.1 ships LocalYAML as the reference adapter; Git
+manifest is scaffolded. Microsoft Purview and ICAP integrations are a
+v2 work item shipped on engagement (see docs/v2-roadmap.md)."""
 
 from promptguard.policies.base import PolicyAdapter
 from promptguard.policies.factory import (
@@ -6,17 +8,13 @@ from promptguard.policies.factory import (
     build_policy_adapter_from_env,
 )
 from promptguard.policies.git_manifest import GitManifestPolicy
-from promptguard.policies.icap_stub import ICAPPolicy
 from promptguard.policies.local_yaml import LocalYAMLPolicy, PolicySchemaError
-from promptguard.policies.purview_stub import PurviewDLPPolicy
 
 __all__ = [
     "GitManifestPolicy",
-    "ICAPPolicy",
     "LocalYAMLPolicy",
     "PolicyAdapter",
     "PolicySchemaError",
     "PolicySourceError",
-    "PurviewDLPPolicy",
     "build_policy_adapter_from_env",
 ]

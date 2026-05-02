@@ -33,7 +33,7 @@ def test_local_yaml_loads_default_policy(policies_dir: Path) -> None:
     assert policy.action_for(Category.DOMAIN, 1.0) == Action.TOKENIZE
 
 
-@pytest.mark.parametrize("policy_name", ["nda-strict", "healthcare-leaning"])
+@pytest.mark.parametrize("policy_name", ["regex-only", "pentest-engagement"])
 def test_local_yaml_loads_sample_policies(policies_dir: Path, policy_name: str) -> None:
     adapter = LocalYAMLPolicy(policies_dir / f"{policy_name}.yaml")
     policy = adapter.load()

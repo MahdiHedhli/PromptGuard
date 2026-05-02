@@ -56,6 +56,9 @@ dev = [
 Homepage = "https://github.com/MahdiHedhli/PromptGuard"
 Issues = "https://github.com/MahdiHedhli/PromptGuard/issues"
 
+[project.scripts]
+promptguard = "promptguard.cli:main"
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/promptguard"]
 

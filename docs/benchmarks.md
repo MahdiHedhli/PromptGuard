@@ -114,7 +114,7 @@ Rama's blog post sets up LiteLLM with built-in PII guards, configured per-patter
 | Reversible TOKENIZE | No | Yes (per-conversation map, streaming SSE round-trip) |
 | BLOCK error envelope (Anthropic + OpenAI shape) | No | Yes |
 | Per-rule policy granularity | Limited | Yes (BLOCK / MASK / TOKENIZE per category, per-rule audit_only) |
-| Adapter framework (DLP integrations) | No | Yes (LocalYAML, Purview-stub, ICAP-stub) |
+| Adapter framework (DLP integrations) | No | Yes (LocalYAML reference; Purview / ICAP shipped on engagement) |
 | Audit log with structural no-text invariant | No | Yes (JSONL, 200-iteration fuzz test) |
 | Hot reload with policy validation | No | Yes (DEC-016) |
 

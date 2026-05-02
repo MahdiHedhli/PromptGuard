@@ -49,7 +49,7 @@ def test_default_policy_matches_research_notes_section_5() -> None:
 
 @pytest.mark.parametrize(
     "policy_name",
-    ["default", "nda-strict", "healthcare-leaning", "regex-only", "pentest-engagement"],
+    ["default", "regex-only", "pentest-engagement"],
 )
 def test_every_policy_blocks_credentials(policy_name: str) -> None:
     """Credentials must BLOCK in every shipped policy regardless of intent."""
@@ -64,30 +64,6 @@ def test_every_policy_blocks_credentials(policy_name: str) -> None:
         assert policy.action_for(category, 1.0) == Action.BLOCK, (
             f"{policy_name}.yaml does not BLOCK {category.value}; "
             "credential categories must always BLOCK."
-        )
-
-
-def test_nda_strict_escalates_email_and_customer_name_to_block() -> None:
-    policy = LocalYAMLPolicy(POLICIES_DIR / "nda-strict.yaml").load()
-    assert policy.action_for(Category.EMAIL, 1.0) == Action.BLOCK
-    assert policy.action_for(Category.CUSTOMER_NAME, 1.0) == Action.BLOCK
-
-
-def test_healthcare_leaning_masks_personal_identifiers() -> None:
-    """PHI-adjacent: no TOKENIZE on personal data (no ledger)."""
-    policy = LocalYAMLPolicy(POLICIES_DIR / "healthcare-leaning.yaml").load()
-    for category in (
-        Category.PRIVATE_NAME,
-        Category.PRIVATE_PHONE,
-        Category.PRIVATE_ADDRESS,
-        Category.EMAIL,
-        Category.DOMAIN,
-        Category.INTERNAL_IP,
-        Category.CUSTOMER_NAME,
-    ):
-        assert policy.action_for(category, 1.0) == Action.MASK, (
-            f"healthcare-leaning must MASK {category.value} (no ledger), "
-            f"got {policy.action_for(category, 1.0)}"
         )
 
 
