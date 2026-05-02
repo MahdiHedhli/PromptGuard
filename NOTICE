@@ -43,12 +43,22 @@ PromptGuard's benchmarks reference the following corpora. The corpora
 themselves are not included in this repository.
 
   - AI4Privacy PII-Masking-300k (https://huggingface.co/datasets/ai4privacy/pii-masking-300k).
-    License: "other" (academic evaluation use without separate licensing,
-    commercial training requires licensing). PromptGuard cites this corpus
-    in docs/benchmarks.md and research-notes.md for methodology grounding;
-    no corpus content is redistributed here.
-  - GitHub Issues Secrets Benchmark (https://arxiv.org/abs/2410.23657).
-    Benchmark and methodology cited; corpus not redistributed.
+    License: "other" (academic evaluation use without separate licensing;
+    commercial training requires licensing). PromptGuard runs the v1.1.1
+    detection benchmarks against the English validation split of this
+    corpus and reports per-category F1 in docs/benchmarks.md. We use the
+    corpus for evaluation only; we do not train on it; we do not
+    redistribute any corpus content here. SHA256 manifests of locally
+    cached files live in local/benchmarks/corpora/ai4privacy/manifest.txt
+    so the methodology is reproducible from a clean checkout.
+  - GitHub Issues Secrets Benchmark (https://arxiv.org/abs/2410.23657,
+    https://zenodo.org/records/17430336). License: Creative Commons
+    Attribution 4.0 International (CC-BY 4.0). Citation:
+    "Secret Leak Detection in Software Issue Reports using LLMs:
+    A Comprehensive Evaluation," arxiv 2410.23657. PromptGuard
+    runs the v1.1.1 detection benchmarks against the test_wild split
+    of this corpus and reports per-category numbers in docs/benchmarks.md.
+    We do not redistribute the corpus.
   - Tonic.ai OpenAI Privacy Filter benchmark
     (https://www.tonic.ai/blog/benchmarking-openai-privacy-filter-pii-detection).
     Numbers cited as the external sanity check on OPF operating points;
