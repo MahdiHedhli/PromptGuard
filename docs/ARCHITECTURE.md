@@ -53,10 +53,10 @@ A small orchestrator that fans a payload out to every configured detector and ag
 
 | Detector             | What it catches                                                                                       | Where it runs                  |
 |----------------------|-------------------------------------------------------------------------------------------------------|---------------------------------|
+| NormalizationDetector | Pre-detection input canonicalization (NFKC, default-ignorable stripping, HTML / URL / base64 decoding) | In-process                      |
 | RegexDetector        | Structured secrets: PEM keys, AWS / GCP / Azure credentials, DB URLs, JWTs, RFC 1918, domains, emails | In-process                      |
 | OPFDetector          | Context-aware PII: names, addresses, phones, free-form secrets                                        | HTTP to `opf-service` container |
 | PresidioDetector     | Org-specific custom recognizers                                                                       | HTTP to Presidio analyzer       |
-| LLMJudgeDetector     | Paraphrased / adversarial reformulations (off by default)                                             | HTTP to local Ollama            |
 
 ### ActionEngine
 
@@ -152,15 +152,27 @@ This is what lets the audit log be shipped to a SIEM or operator without becomin
 
 The default policy mode is "every rule enforces." Operators promoting a new rule from "I think this catches X" to "this is enforced for everyone" need a window where the rule fires and is logged but does not block or rewrite. Per-rule `audit_only: true` gives them that. The engine emits audit events for audit-only detections regardless of whether enforcement also fires, so the typical operator workflow (audit-only one rule for a soak window, then promote) accumulates events even on requests other rules block.
 
-### 5.10 LLM judge is opt-in with tolerant runtime semantics
+### 5.10 LLM judge: validated for detection, removed for latency
 
-The LLM judge posts to a local Ollama at `temperature: 0`, `seed: 0`, with a structured prompt asking for a JSON array of `{category, start, end}`. Failure modes return zero detections with a warning log: timeout, HTTP error, connection refused, non-JSON envelope, malformed list items, out-of-range spans. The judge is opt-in via `detectors.llm_judge.enabled: true` because the v1 default model produces unreliable JSON; an operator who turns it on with an unreliable model gets no false positives, just no judge-derived detections.
+v1 shipped an `LLMJudgeDetector` that posted user text to a local Ollama
+and asked for a JSON array of detected PII spans. v1 marked it
+"shipped but not validated"; v1.1 closed that ambiguity by running a
+50-prompt validation harness against `qwen2.5:7b-instruct-q4_K_M` with
+a tightened prompt template. Detection capability validated cleanly
+(100% recall lift on paraphrased PII the deterministic stages missed,
+0% false positive rate on clean prose, 100% parse-success rate). Per-call
+latency p95 was 1.5 s, 3x over the 500 ms inline-pipeline budget the
+v1.1 brief required. Per the brief's strict pass criteria the component
+was removed. DEC-025 documents the validation results so a future
+revisit (faster hardware, smaller distilled model, or async-only judge
+mode) has the data.
 
-The judge's status as v1 was "wired but not validated against a benchmark." Validating or removing this component is a v1.1 work item.
+The `DetectorAdapter` framework remains; future detector adapters
+plug in via the same ABC.
 
 ### 5.11 Adapter ABCs, not Protocols
 
-`DetectorAdapter` and `PolicyAdapter` are real ABCs with audit-conformance tests. Every shipped adapter is parametrized through a single conformance test that asserts class-attribute conventions (lowercase `name`, no spaces), output shape invariants, and ABC subclassing. Protocols would document the shape but not enforce it; ABCs let an adapter's instantiation refuse at construction time when the contract is not met. The v1 LLM judge skeleton, before its real implementation landed, raised `LLMJudgeNotImplemented` from its constructor for exactly this reason.
+`DetectorAdapter` and `PolicyAdapter` are real ABCs with audit-conformance tests. Every shipped adapter is parametrized through a single conformance test that asserts class-attribute conventions (lowercase `name`, no spaces), output shape invariants, and ABC subclassing. Protocols would document the shape but not enforce it; ABCs let an adapter's instantiation refuse at construction time when the contract is not met.
 
 This is what lets `PurviewDLPPolicy` and `ICAPPolicy` ship as PoC stubs with sample fixtures: the adapter ABCs are the contract real integrations will satisfy when they land.
 

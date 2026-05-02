@@ -52,7 +52,6 @@ detectors:
   regex: { enabled: true }
   opf: { enabled: false }
   presidio: { enabled: false }
-  llm_judge: { enabled: false }
 rules:
   - category: email
     action: MASK
@@ -76,7 +75,6 @@ detectors:
   regex: { enabled: true }
   opf: { enabled: false }
   presidio: { enabled: false }
-  llm_judge: { enabled: false }
 rules:
   - category: email
     action: BLOCK
@@ -99,7 +97,7 @@ def test_reloader_no_swap_when_mtime_unchanged(tmp_path: Path) -> None:
         "p",
         """\
 name: original
-detectors: { regex: { enabled: true }, opf: { enabled: false }, presidio: { enabled: false }, llm_judge: { enabled: false } }
+detectors: { regex: { enabled: true }, opf: { enabled: false }, presidio: { enabled: false } }
 rules: []
 """,
     )
@@ -118,7 +116,7 @@ def test_reloader_rejects_invalid_yaml_keeps_old_policy(tmp_path: Path) -> None:
         "p",
         """\
 name: original
-detectors: { regex: { enabled: true }, opf: { enabled: false }, presidio: { enabled: false }, llm_judge: { enabled: false } }
+detectors: { regex: { enabled: true }, opf: { enabled: false }, presidio: { enabled: false } }
 rules: []
 """,
     )
@@ -163,7 +161,7 @@ def test_reloader_rejects_swap_when_new_policy_needs_opf_and_opf_unreachable(
             "p",
             """\
 name: original
-detectors: { regex: { enabled: true }, opf: { enabled: false }, presidio: { enabled: false }, llm_judge: { enabled: false } }
+detectors: { regex: { enabled: true }, opf: { enabled: false }, presidio: { enabled: false } }
 rules: []
 """,
         )
@@ -173,7 +171,7 @@ rules: []
         f.write_text(
             """\
 name: opf-needed
-detectors: { regex: { enabled: true }, opf: { enabled: true }, presidio: { enabled: false }, llm_judge: { enabled: false } }
+detectors: { regex: { enabled: true }, opf: { enabled: true }, presidio: { enabled: false } }
 rules: []
 """,
             encoding="utf-8",
@@ -195,7 +193,7 @@ def test_reloader_preserves_token_map_across_swap(tmp_path: Path) -> None:
         "p",
         """\
 name: a
-detectors: { regex: { enabled: true }, opf: { enabled: false }, presidio: { enabled: false }, llm_judge: { enabled: false } }
+detectors: { regex: { enabled: true }, opf: { enabled: false }, presidio: { enabled: false } }
 rules:
   - category: internal_ip
     action: TOKENIZE
@@ -216,7 +214,7 @@ rules:
     f.write_text(
         """\
 name: b
-detectors: { regex: { enabled: true }, opf: { enabled: false }, presidio: { enabled: false }, llm_judge: { enabled: false } }
+detectors: { regex: { enabled: true }, opf: { enabled: false }, presidio: { enabled: false } }
 rules:
   - category: internal_ip
     action: BLOCK
@@ -243,7 +241,7 @@ def test_reloader_background_thread_picks_up_change(tmp_path: Path) -> None:
         "p",
         """\
 name: start
-detectors: { regex: { enabled: true }, opf: { enabled: false }, presidio: { enabled: false }, llm_judge: { enabled: false } }
+detectors: { regex: { enabled: true }, opf: { enabled: false }, presidio: { enabled: false } }
 rules: []
 """,
     )
@@ -255,7 +253,7 @@ rules: []
         f.write_text(
             """\
 name: end
-detectors: { regex: { enabled: true }, opf: { enabled: false }, presidio: { enabled: false }, llm_judge: { enabled: false } }
+detectors: { regex: { enabled: true }, opf: { enabled: false }, presidio: { enabled: false } }
 rules: []
 """,
             encoding="utf-8",

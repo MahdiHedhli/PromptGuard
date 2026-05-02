@@ -88,17 +88,6 @@ def build_pipeline_from_policy(
     if policy.detectors.presidio.enabled:
         detectors.append(PresidioDetector(base_url=presidio_url))
 
-    if policy.detectors.llm_judge.enabled:
-        # v1 wires the real LLMJudgeDetector. Operators must run an
-        # Ollama server reachable at PROMPTGUARD_OLLAMA_URL; the adapter
-        # itself is tolerant (timeouts and HTTP errors return zero
-        # detections) so the pipeline does not hard-fail on transient
-        # Ollama issues. We construct unconditionally; runtime tolerance
-        # handles availability.
-        from promptguard.detectors.llm_judge import LLMJudgeDetector
-
-        detectors.append(LLMJudgeDetector())
-
     if not detectors:
         raise DetectorUnavailableError(
             "Policy enables zero detectors. At least one detector must be "

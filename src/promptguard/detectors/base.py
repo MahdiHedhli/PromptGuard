@@ -2,8 +2,8 @@
 
 All detectors share one interface so the `DetectionPipeline` can fan out
 to them uniformly. This module formalizes that contract as an abstract
-base. v1 adapters (`RegexDetector`, `OPFDetector`, `PresidioDetector`,
-`LLMJudgeDetector`) all conform.
+base. v1 adapters (`RegexDetector`, `OPFDetector`, `PresidioDetector`)
+all conform.
 
 # Contract
 
@@ -44,7 +44,7 @@ input text. The contract has four binding rules:
 The `name` attribute is the operator-facing label that appears in
 audit logs and error envelopes (`detector` field on `Detection`).
 Convention: lowercase, no spaces. Standard names: `regex`, `opf`,
-`presidio`, `llm_judge`.
+`presidio`.
 
 # Concurrency
 

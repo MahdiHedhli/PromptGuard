@@ -1,9 +1,9 @@
 # DEC-018: LLM judge real implementation + audit log writer
 
 **Date:** 2026-05-04
-**Status:** Accepted
+**Status:** LLM judge half superseded by [DEC-025](025-llm-judge-removal-after-v1.1-validation.md) (component removed at v1.1). Audit writer half remains in force.
 **Phase:** v1 (LLM judge + audit writer)
-**Author:** Claude Code (autonomous)
+**Author:** MahdiHedhli
 
 ---
 

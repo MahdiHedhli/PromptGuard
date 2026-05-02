@@ -24,7 +24,6 @@ def _policy_with_opf(enabled: bool) -> Policy:
             regex=DetectorToggle(enabled=False),
             opf=DetectorToggle(enabled=enabled),
             presidio=DetectorToggle(enabled=False),
-            llm_judge=DetectorToggle(enabled=False),
         ),
     )
 
@@ -61,7 +60,6 @@ def test_pipeline_factory_opf_disabled_does_not_probe_service() -> None:
             regex=DetectorToggle(enabled=True),
             opf=DetectorToggle(enabled=False),
             presidio=DetectorToggle(enabled=False),
-            llm_judge=DetectorToggle(enabled=False),
         ),
     )
     # respx not used: any network attempt would fail since opf.test isn't real.
@@ -77,7 +75,6 @@ def test_pipeline_factory_zero_detectors_raises() -> None:
             regex=DetectorToggle(enabled=False),
             opf=DetectorToggle(enabled=False),
             presidio=DetectorToggle(enabled=False),
-            llm_judge=DetectorToggle(enabled=False),
         ),
     )
     with pytest.raises(DetectorUnavailableError) as exc_info:
@@ -85,22 +82,3 @@ def test_pipeline_factory_zero_detectors_raises() -> None:
     assert "zero detectors" in str(exc_info.value).lower()
 
 
-def test_pipeline_factory_llm_judge_enabled_constructs_judge_at_v1() -> None:
-    """v1: enabling llm_judge constructs the LLMJudgeDetector. The
-    adapter is tolerant of Ollama being unreachable at request time
-    (timeout / HTTP error returns zero detections, does not fail the
-    pipeline), so the factory does not need a runtime readiness probe
-    like it does for OPF."""
-    policy = Policy(
-        name="t",
-        detectors=DetectorConfig(
-            regex=DetectorToggle(enabled=True),
-            opf=DetectorToggle(enabled=False),
-            presidio=DetectorToggle(enabled=False),
-            llm_judge=DetectorToggle(enabled=True),
-        ),
-    )
-    pipeline = build_pipeline_from_policy(policy, skip_opf_readiness_check=True)
-    names = [d.name for d in pipeline.detectors]
-    assert "llm_judge" in names
-    assert "regex" in names

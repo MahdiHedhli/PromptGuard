@@ -98,7 +98,6 @@ DetectionPipeline (multi-stage, configurable layering)
 ├── OPFDetector                # stage 2: context-aware PII (names, emails, addresses, phones, free-form secrets)
 │                              #          OpenAI Privacy Filter (Apache 2.0, released 2026-04-22)
 ├── PresidioDetector           # stage 3: org-specific custom recognizers (codenames, customer names)
-└── LLMJudgeDetector           # stage 4: opt-in, off by default in v1; tuning in v1.1
 ```
 
 ### Why multi-stage instead of single detector

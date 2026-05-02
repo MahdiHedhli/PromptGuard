@@ -112,14 +112,5 @@ def test_regex_only_disables_opf_and_presidio() -> None:
     assert policy.detectors.regex.enabled is True
     assert policy.detectors.opf.enabled is False
     assert policy.detectors.presidio.enabled is False
-    assert policy.detectors.llm_judge.enabled is False
 
 
-def test_every_policy_disables_llm_judge_at_v1() -> None:
-    """Research-notes Decision 6: LLM judge ships off in v1 across all policies."""
-    for policy_file in POLICIES_DIR.glob("*.yaml"):
-        policy = LocalYAMLPolicy(policy_file).load()
-        assert policy.detectors.llm_judge.enabled is False, (
-            f"{policy_file.name} ships with llm_judge enabled; "
-            f"v1 keeps it off (research-notes Decision 6)"
-        )

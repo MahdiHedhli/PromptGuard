@@ -28,7 +28,6 @@ detectors:
   regex:     { enabled: true }
   opf:       { enabled: true }
   presidio:  { enabled: true }
-  llm_judge: { enabled: false }
 ```
 
 Defaults match the v1 shipping posture: regex, OPF, Presidio enabled; LLM judge off (research-notes Decision 6). At v1 there are no per-detector parameters; all per-detector tuning lives on the detector side. v1.1 will add confidence thresholds and per-recognizer toggles.
@@ -42,7 +41,6 @@ Hard-fail behavior at startup:
   without OPF detection, set detectors.opf.enabled = false in your policy file.
   ```
 
-- If `llm_judge.enabled = true`, the proxy refuses to start. The LLM judge ships in v1.1.
 
 - If every detector is disabled, the proxy refuses to start. PromptGuard with no detectors would forward all traffic unchecked, which contradicts the threat-model promise.
 
@@ -133,7 +131,7 @@ There is no per-request override mechanism in v1. The active policy is selected 
 Three documented escape hatches exist for the cases where strict enforcement is wrong:
 
 - **`audit_only: true`** in the policy YAML logs every detection but does not rewrite or block. Use during policy bring-up to see what would have fired without disrupting the user. (v1 ships the field; full audit-log writer lands in v1.1 with the audit-log work.)
-- **`detectors.opf.enabled: false`** (and the equivalent for `presidio`, `llm_judge`) disables specific detector stages. Useful for offline installs and the `regex-only.yaml` shipped policy.
+- **`detectors.opf.enabled: false`** (and the equivalent for `presidio`) disables specific detector stages. Useful for offline installs and the `regex-only.yaml` shipped policy.
 - **Restart with a different `PROMPTGUARD_POLICY_FILE`** picks up a new policy file.
 - **Hot-reload (opt-in, DEC-016).** Set `PROMPTGUARD_POLICY_RELOAD_INTERVAL_S` to a positive float to poll the policy file at that interval. On change the proxy validates, re-probes detector readiness, and atomically swaps the policy. Live conversations keep their TokenMap (reverse mappings stay valid). A broken edit is rejected with the same line + column + field-path error format; the previous policy stays active.
 

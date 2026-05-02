@@ -1,6 +1,6 @@
 """DetectorAdapter contract conformance suite.
 
-Every detector ships pinned to the ABC. This test sweeps the four
+Every detector ships pinned to the ABC. This test sweeps the three
 shipped adapters and asserts:
 
   * They subclass `DetectorAdapter`.
@@ -11,8 +11,7 @@ shipped adapters and asserts:
   * Determinism: same input twice yields the same span set.
 
 OPF and Presidio are HTTP-backed; we mock them via respx so the test
-runs without the docker stack. LLMJudgeDetector is asserted to refuse
-instantiation at v1 (skeleton; real impl v1).
+runs without the docker stack.
 """
 
 from __future__ import annotations
@@ -27,8 +26,6 @@ from promptguard.core.detection import Detection
 from promptguard.core.policy import Category
 from promptguard.detectors import (
     DetectorAdapter,
-    LLMJudgeDetector,
-    LLMJudgeNotImplemented,
     OPFDetector,
     PresidioDetector,
     RegexDetector,
@@ -40,7 +37,7 @@ from promptguard.detectors import (
 
 @pytest.mark.parametrize(
     "adapter_cls",
-    [RegexDetector, OPFDetector, PresidioDetector, LLMJudgeDetector],
+    [RegexDetector, OPFDetector, PresidioDetector],
 )
 def test_subclasses_detector_adapter(adapter_cls) -> None:
     assert issubclass(adapter_cls, DetectorAdapter)
@@ -52,7 +49,6 @@ def test_subclasses_detector_adapter(adapter_cls) -> None:
         (RegexDetector, "regex"),
         (OPFDetector, "opf"),
         (PresidioDetector, "presidio"),
-        (LLMJudgeDetector, "llm_judge"),
     ],
 )
 def test_name_class_attribute(adapter_cls, expected_name: str) -> None:
@@ -66,7 +62,7 @@ def test_name_class_attribute(adapter_cls, expected_name: str) -> None:
 
 @pytest.mark.parametrize(
     "adapter_cls",
-    [RegexDetector, OPFDetector, PresidioDetector, LLMJudgeDetector],
+    [RegexDetector, OPFDetector, PresidioDetector],
 )
 def test_detect_is_async(adapter_cls) -> None:
     assert inspect.iscoroutinefunction(adapter_cls.detect)
@@ -189,20 +185,6 @@ def test_aclose_default_no_op_on_base() -> None:
     import asyncio
 
     asyncio.run(p.aclose())  # must not raise
-
-
-# ------------ LLM judge skeleton --------------------------------
-
-
-def test_llm_judge_instantiates_with_documented_defaults() -> None:
-    """v1 wires the real implementation. Construction succeeds; the
-    adapter is tolerant of Ollama being unreachable at request time
-    (returns zero detections + warning, does not fail the pipeline)."""
-    judge = LLMJudgeDetector()
-    assert judge.name == "llm_judge"
-    # The legacy stub class still exports under the same name for
-    # callers that imported it before v1.
-    assert issubclass(LLMJudgeNotImplemented, NotImplementedError)
 
 
 # ------------ Detection produced by every adapter conforms ----

@@ -79,7 +79,6 @@ detectors:
   regex:     { enabled: true }
   opf:       { enabled: true }
   presidio:  { enabled: true }
-  llm_judge: { enabled: false }
 rules:
   - { category: email,         action: MASK }
   - { category: cloud_api_key, action: BLOCK }

@@ -12,7 +12,4 @@ detectors:
     enabled: false
   presidio:
     enabled: false
-  llm_judge:
-    enabled: false
-
 rules: []

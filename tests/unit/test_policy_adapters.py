@@ -202,7 +202,7 @@ def test_purview_and_yaml_agree_on_subset_of_rules(tmp_path: Path) -> None:
     yaml_equiv.write_text(
         """\
 name: equiv
-detectors: { regex: { enabled: true }, opf: { enabled: true }, presidio: { enabled: true }, llm_judge: { enabled: false } }
+detectors: { regex: { enabled: true }, opf: { enabled: true }, presidio: { enabled: true } }
 rules:
   - { category: private_key, action: BLOCK, min_confidence: 0.95 }
   - { category: cloud_api_key, action: BLOCK, min_confidence: 0.9 }

@@ -14,7 +14,6 @@ DetectorAdapter (abstract base)
 ├── RegexDetector              # in-process; deterministic shape match
 ├── OPFDetector                # HTTP -> opf-service container
 ├── PresidioDetector           # HTTP -> presidio-analyzer container
-└── LLMJudgeDetector           # skeleton at v1; real impl v1
 ```
 
 ### Contract
@@ -28,7 +27,7 @@ A `DetectorAdapter` produces zero or more `Detection` spans for a given input te
 
 ### Naming
 
-Lowercase, no spaces. Standard names: `regex`, `opf`, `presidio`, `llm_judge`. The name appears in audit logs and on each `Detection.detector` field, so operators can grep by detector cleanly.
+Lowercase, no spaces. Standard names: `regex`, `opf`, `presidio`. The name appears in audit logs and on each `Detection.detector` field, so operators can grep by detector cleanly.
 
 ### Adding a new detector
 

@@ -111,4 +111,3 @@ def test_loaded_policy_default_detector_toggles() -> None:
     assert policy.detectors.regex.enabled is True
     assert policy.detectors.opf.enabled is True
     assert policy.detectors.presidio.enabled is True
-    assert policy.detectors.llm_judge.enabled is False

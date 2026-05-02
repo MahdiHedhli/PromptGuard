@@ -12,9 +12,6 @@ detectors:
     enabled: true
   presidio:
     enabled: true
-  llm_judge:
-    enabled: false
-
 rules:
   - category: private_key
     action: BLOCK

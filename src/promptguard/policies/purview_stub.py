@@ -19,9 +19,9 @@ Top-level fields:
   - `policyName`    -> `Policy.name`
   - `policyVersion` -> `Policy.version`
 
-Detector toggles default to v1 shipping posture (regex/opf/presidio on,
-llm_judge off). v1.1 may add Purview-side hints for which detectors to
-enable.
+Detector toggles default to v1.1 shipping posture (regex/opf/presidio
+on). Purview-side hints for which detectors to enable are a follow-up
+work item.
 """
 
 from __future__ import annotations

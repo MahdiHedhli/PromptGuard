@@ -1,9 +1,9 @@
 # DEC-019: Per-rule audit_only schema; LLM judge shipped but not validated at v1
 
 **Date:** 2026-05-06
-**Status:** Accepted
+**Status:** LLM judge half superseded by [DEC-025](025-llm-judge-removal-after-v1.1-validation.md) (validation completed at v1.1, component removed). Per-rule `audit_only` schema remains in force.
 **Phase:** v1 (benchmarks + shipping prep)
-**Author:** Claude Code (autonomous)
+**Author:** MahdiHedhli
 
 ---
 
