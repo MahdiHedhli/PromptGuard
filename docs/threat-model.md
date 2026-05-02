@@ -58,6 +58,59 @@ A malicious LLM response could try to manipulate the substitution that restores 
 2. **Per-conversation map scoping.** Restoration is a dict lookup against the *current conversation's* map. A token issued in conversation A is never substituted while we serve conversation B, even if conversation B's map happens to contain the same suffix (vanishingly unlikely with 64-bit randomness, but the scoping enforces correctness rather than relying on probability).
 3. **Pure string substitution.** The LLM does not select a key; it can only emit a string whose substring matches our token regex, which the proxy then looks up in the conversation map. Tokens not in the map pass through unchanged ("never invent reverse mappings"). This is enforced in `TokenMap.restore` and tested directly in `test_post_call_streaming_iterator_isolates_conversations` and `test_reverse_path_does_not_invent_mappings`.
 
+### A8. Detector-evasion via input encoding
+
+A user (or copy-pasted content with a hidden payload) can defeat
+shape-based detectors by encoding sensitive data in a form the
+detector regex does not match. Concrete attack shapes:
+
+- **Zero-width injection.** Insert U+200B (Zero-Width Space), U+200C
+  (ZWNJ), U+200D (ZWJ), or U+FEFF (BOM) between credential characters.
+  The credential is visually unchanged but breaks shape-based regex.
+- **Unicode confusables.** Substitute visually-similar code points
+  from other scripts (Cyrillic 'а' for Latin 'a', Greek 'ο' for
+  Latin 'o', fullwidth 'Ａ' for Latin 'A'). The credential reads the
+  same to a human but does not match an ASCII-anchored regex.
+- **Transport encoding wrappers.** Wrap a credential in base64,
+  percent-encoding, or HTML character entities. The encoded form is
+  not in the credential's shape; the decoded form is.
+- **Nested wrappers.** Combine the above (e.g. base64 of a
+  URL-encoded payload) so a single decode pass is insufficient.
+
+**Mitigation (DEC-024):** the `NormalizationDetector` runs as a
+pre-detection layer in `DetectionPipeline`. It applies, in order:
+
+1. NFKC compatibility canonicalization (Unicode TR #15) folds
+   compatibility variants (fullwidth, Roman numerals, certain
+   confusables) to their canonical Latin form.
+2. Default-ignorable code-point stripping (UAX #44 plus the Unicode
+   Cf "Format" category) removes zero-width and BOM-class
+   characters.
+3. HTML entity decoding (`html.unescape`).
+4. URL percent-decoding (`urllib.parse.unquote`).
+5. Recursive base64 decoding for runs >=16 chars whose decoded
+   payload is printable ASCII; recursion cap of 3 unwraps nested
+   wrappers (base64 of URL-encoded, etc.) while bounding cost.
+
+Downstream detectors (regex, OPF, Presidio) run against the
+canonicalized text. Reported spans are remapped to the original
+input via the per-character span map so the rewrite path
+substitutes against the user-visible text. The substitution
+expands to the entire encoded chunk for decoded regions, so an
+operator-visible BLOCK or MASK covers the full original
+obfuscation, not just its decoded image.
+
+**Residual risk.**
+
+- Encoding schemes the canonicalizer does not implement (rot13,
+  custom substitution ciphers, steganographic embedding).
+- Character-level adversarial perturbations targeting OPF's neural
+  classifier specifically (a different class of attack from
+  encoding-based evasion).
+- A determined adversary inside the user's machine can always paste
+  data through a channel PromptGuard does not see; the threat model
+  is "cooperative-but-fallible user," not insider-threat.
+
 ## What PromptGuard does not defend against
 
 ### N1. Adversarial users

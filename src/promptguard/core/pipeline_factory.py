@@ -105,4 +105,10 @@ def build_pipeline_from_policy(
             "enabled, otherwise PromptGuard would forward all traffic unchecked."
         )
 
-    return DetectionPipeline(detectors)
+    normalizer = None
+    if policy.detectors.normalization.enabled:
+        from promptguard.detectors.normalizer import NormalizationDetector
+
+        normalizer = NormalizationDetector()
+
+    return DetectionPipeline(detectors, normalizer=normalizer)

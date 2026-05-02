@@ -75,6 +75,11 @@ class DetectorConfig(BaseModel):
     opf: DetectorToggle = Field(default_factory=DetectorToggle)
     presidio: DetectorToggle = Field(default_factory=DetectorToggle)
     llm_judge: DetectorToggle = Field(default_factory=lambda: DetectorToggle(enabled=False))
+    # Pre-detection input canonicalization (NFKC, default-ignorable
+    # stripping, HTML / URL / base64 decoding). Defends threat-model
+    # A8 (encoding-evasion). On by default per DEC-024; the latency
+    # cost is sub-millisecond and the security benefit is structural.
+    normalization: DetectorToggle = Field(default_factory=DetectorToggle)
 
 
 class Policy(BaseModel):
