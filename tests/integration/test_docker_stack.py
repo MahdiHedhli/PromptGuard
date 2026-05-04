@@ -16,9 +16,22 @@ import os
 import httpx
 import pytest
 
-LITELLM_URL = os.environ.get("PROMPTGUARD_LITELLM_URL", "http://localhost:4000")
-PRESIDIO_URL = os.environ.get("PROMPTGUARD_PRESIDIO_URL", "http://localhost:5002")
-OPF_URL = os.environ.get("PROMPTGUARD_OPF_URL", "http://localhost:8081")
+# Honor the same port-override env vars docker-compose reads, so the
+# smoke target works on hosts where 4000 / 5002 / 8081 are taken.
+# Either PROMPTGUARD_LITELLM_URL (full URL) or PROMPTGUARD_LITELLM_PORT
+# (port only) suffices; the URL form wins when both are set.
+_LITELLM_PORT = os.environ.get("PROMPTGUARD_LITELLM_PORT", "4000")
+_PRESIDIO_PORT = os.environ.get("PROMPTGUARD_PRESIDIO_PORT", "5002")
+_OPF_PORT = os.environ.get("PROMPTGUARD_OPF_PORT", "8081")
+LITELLM_URL = os.environ.get(
+    "PROMPTGUARD_LITELLM_URL", f"http://localhost:{_LITELLM_PORT}"
+)
+PRESIDIO_URL = os.environ.get(
+    "PROMPTGUARD_PRESIDIO_URL", f"http://localhost:{_PRESIDIO_PORT}"
+)
+OPF_URL = os.environ.get(
+    "PROMPTGUARD_OPF_URL", f"http://localhost:{_OPF_PORT}"
+)
 
 
 async def _get_or_skip(url: str, *, service_name: str) -> httpx.Response:
