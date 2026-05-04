@@ -3,13 +3,13 @@
 **Date:** 2026-05-01
 **Status:** Accepted
 **Phase:** v1 (action engine + LiteLLM hook)
-**Author:** Claude Code (autonomous)
+**Author:** MahdiHedhli
 
 ---
 
 ## Context
 
-v1 directive from Mahdi: if a policy enables OPF and OPF is not
+v1 directive: if a policy enables OPF and OPF is not
 available, hard-fail with a clear, actionable error. PromptGuard's
 threat-model promise is "PII never leaves the host"; silently degrading
 to "OPF disabled" breaks that promise without operator awareness.
@@ -35,7 +35,7 @@ start. The lazy + hard-fail combination is unbootable.
 ### Option 2: Eager load at OPF service startup (chosen)
 - Pros: `/ready` becomes meaningful: "the model loaded successfully" or
   "the load failed loudly with an error message". The proxy's hard-fail
-  check works as Mahdi specified. If the HF model path is wrong, the
+  check works as specified. If the HF model path is wrong, the
   operator sees the failure within seconds of `docker compose up`, not
   on the first user request.
 - Cons: Container takes longer to become "fully ready" (the load is
@@ -44,8 +44,8 @@ start. The lazy + hard-fail combination is unbootable.
 
 ### Option 3: Eager load OPF AND retry-with-backoff in the proxy
 - Pros: Tolerates slow downloads.
-- Cons: Hides startup failures behind retries, exactly what Mahdi told
-  us not to do.
+- Cons: Hides startup failures behind retries, the failure mode the v1
+  directive explicitly rules out.
 
 ## Decision
 

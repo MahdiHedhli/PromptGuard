@@ -107,13 +107,17 @@ Errors include line, column, field path, the validation message, and the offendi
 
 ## Worked examples
 
-Five sample policies ship in `policies/`:
+Three policies ship in `policies/` for direct use:
 
 - [`default.yaml`](../policies/default.yaml): the locked mapping in research-notes section 5. Use this when in doubt.
-- [`nda-strict.yaml`](../policies/nda-strict.yaml): contractual workflows. Customer names, emails, and account numbers escalate to `BLOCK`. Domain and internal IP de-escalate to `MASK` (no ledger).
-- [`healthcare-leaning.yaml`](../policies/healthcare-leaning.yaml): PHI-adjacent workflows. Every personal identifier is `MASK` (no token-map ledger that might exceed retention rules under HIPAA). Credentials `BLOCK`.
 - [`pentest-engagement.yaml`](../policies/pentest-engagement.yaml): external security testing under client NDA. Customer infrastructure (domains, internal IPs, codenames, cloud account IDs) all `BLOCK`. Personal identifiers `MASK`.
 - [`regex-only.yaml`](../policies/regex-only.yaml): regex stage only, OPF and Presidio disabled. Documented escape hatch for environments without OPF model access (offline install, restricted egress).
+
+Three additional policies under [`docs/policy-examples/`](policy-examples/) show how to express common scenarios; copy and adapt as needed:
+
+- [`nda-strict.yaml`](policy-examples/nda-strict.yaml): contractual workflows. Customer names, emails, and account numbers escalate to `BLOCK`. Domain and internal IP de-escalate to `MASK` (no ledger).
+- [`healthcare-leaning.yaml`](policy-examples/healthcare-leaning.yaml): PHI-adjacent workflows. Every personal identifier is `MASK` (no token-map ledger that might exceed retention rules under HIPAA). Credentials `BLOCK`.
+- [`passthrough-test.yaml`](policy-examples/passthrough-test.yaml): all detectors disabled; useful only for measuring overhead-free baselines.
 
 To add a custom policy, copy one of these into `policies/` (or any path mounted into the LiteLLM container) and point the proxy at it:
 

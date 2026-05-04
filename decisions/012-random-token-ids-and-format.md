@@ -3,15 +3,15 @@
 **Date:** 2026-05-02
 **Status:** Accepted
 **Phase:** v1 (reversible TOKENIZE)
-**Author:** Claude Code (autonomous)
+**Author:** MahdiHedhli
 
 ---
 
 ## Context
 
 v1 shipped TOKENIZE with sequential per-category-per-conversation IDs
-like `[EMAIL_001]`. The v1 daily report flagged this as a v1.1 hardening
-candidate per research-notes section 10 question 5. Mahdi's the v1 plan
+like `[EMAIL_001]`. The v1 review flagged this as a v1.1 hardening
+candidate per research-notes section 10 question 5. The v1 plan
 escalates this to v1: sequential IDs are a prompt-injection vector and
 must be replaced now.
 

@@ -3,7 +3,7 @@
 **Date:** 2026-05-03
 **Status:** Accepted
 **Phase:** v1 (policy config polish)
-**Author:** Claude Code (autonomous)
+**Author:** MahdiHedhli
 
 ---
 

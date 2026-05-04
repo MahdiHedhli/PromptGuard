@@ -1,8 +1,8 @@
 {
   "configurations": {
     "regex_only": {
-      "elapsed_per_example_ms": 0.066,
-      "elapsed_total_s": 0.014,
+      "elapsed_per_example_ms": 0.073,
+      "elapsed_total_s": 0.016,
       "metrics": {
         "cloud_api_key": {
           "f1": 1.0,

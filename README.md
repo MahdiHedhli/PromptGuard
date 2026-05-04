@@ -2,16 +2,16 @@
 
 Local LLM proxy that prevents PII and sensitive data from leaving developer machines.
 
-**Status:** v1 in active development. Targeting first release within 14 days of kickoff (2026-04-30).
+**Status:** v1.1 release candidate.
 
 ## What it does
 
 PromptGuard sits between your AI tooling (Claude Code, Cursor, Continue.dev, custom agents) and the upstream LLM provider. Every prompt is inspected by a layered detection pipeline before it leaves the host:
 
-1. **Regex** for structured secrets: PEM private keys, AWS / GCP / Azure credentials, database URLs, JWTs, RFC 1918 addresses.
-2. **OpenAI Privacy Filter (OPF)** for context-aware PII: names, emails, phones, addresses, free-form secrets.
-3. **Microsoft Presidio** with custom recognizers for org-specific entities: codenames, customer names, internal hostnames.
-4. **Optional LLM judge** (off by default) for paraphrased and adversarial cases.
+1. **Adversarial-input normalization** runs first: NFKC canonicalization, zero-width-character stripping, base64 / URL / HTML-entity decoding so encoded payloads cannot bypass downstream detectors. Span map preserves original-text offsets for rewrite.
+2. **Regex** for structured secrets: PEM private keys, AWS / GCP / Azure credentials, database URLs, JWTs, RFC 1918 addresses.
+3. **OpenAI Privacy Filter (OPF)** for context-aware PII: names, emails, phones, addresses, free-form secrets.
+4. **Microsoft Presidio** with custom recognizers for org-specific entities: codenames, customer names, internal hostnames.
 
 When a detector fires, a per-pattern policy decides what happens:
 
@@ -45,10 +45,10 @@ export ANTHROPIC_BASE_URL=http://localhost:4000
 export OPENAI_BASE_URL=http://localhost:4000/v1
 ```
 
-The default policy lives at [`policies/default.yaml`](policies/default.yaml). Four other shipped policies cover common postures: [`nda-strict.yaml`](policies/nda-strict.yaml), [`healthcare-leaning.yaml`](policies/healthcare-leaning.yaml), [`pentest-engagement.yaml`](policies/pentest-engagement.yaml), and [`regex-only.yaml`](policies/regex-only.yaml). Switch policies with:
+The default policy lives at [`policies/default.yaml`](policies/default.yaml). Two other shipped policies cover common postures: [`pentest-engagement.yaml`](policies/pentest-engagement.yaml) and [`regex-only.yaml`](policies/regex-only.yaml). Reference policies for additional scenarios (NDA-strict, healthcare-leaning, passthrough-test) live under [`docs/policy-examples/`](docs/policy-examples/). Switch policies with:
 
 ```bash
-PROMPTGUARD_POLICY_FILE=/app/policies/nda-strict.yaml docker compose up -d
+PROMPTGUARD_POLICY_FILE=/app/policies/pentest-engagement.yaml docker compose up -d
 ```
 
 ### Air-gapped or restricted-egress install

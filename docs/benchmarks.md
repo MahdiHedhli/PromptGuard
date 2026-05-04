@@ -146,11 +146,39 @@ Outputs land in `local/benchmarks/results/v1.1.1/` (real-corpus) and `benchmarks
 
 The real-corpus harness requires the AI4Privacy and GitHub Issues Secrets corpora to be downloaded once. AI4Privacy comes via the `datasets` package; GitHub Issues Secrets via `curl https://zenodo.org/records/17430336/files/Secret-Leak-Detection-Issue-Report.zip`. Neither corpus is in the repo; both are gitignored.
 
+## OPF operating-point comparison
+
+The v1.1.2 brief required a default-vs-recall-tuned OPF operating-point comparison. The OPF service exposes `aggregation_strategy` as a per-request knob (default `simple`; alternatives `max`, `first`, `average`). The HuggingFace token-classification pipeline cached per-strategy in-process, so an A/B does not require a container restart.
+
+Run on AI4Privacy English (7,946 records, span-IoU >= 0.5 scoring):
+
+| Category | full pipeline (default `simple`) | full pipeline (recall-tuned `max`) |
+|---|---:|---:|
+| email | F1 0.658 (P 0.49 / R 1.00) | F1 0.658 (P 0.49 / R 1.00) |
+| internal_ip | F1 0.004 (P 0.00 / R 1.00) | F1 0.004 (P 0.00 / R 1.00) |
+| private_address | F1 0.358 (P 0.72 / R 0.24) | F1 0.358 (P 0.72 / R 0.24) |
+| private_name | F1 0.273 (P 0.33 / R 0.23) | F1 0.273 (P 0.33 / R 0.23) |
+| private_phone | F1 0.306 (P 0.25 / R 0.40) | F1 0.306 (P 0.25 / R 0.40) |
+
+**The numbers are byte-identical at IoU >= 0.5.**
+
+Per-span behavior does differ. Direct A/B on a sample sentence
+`"James Smith called yesterday about his account. Email: james.smith@aol.com, phone 555-123-4567."`:
+
+- `simple` returns two email fragments (`" james.smith@aol"` and `".com"`) and two phone fragments (`"555-123-456"` and `"7"`).
+- `max` returns one merged email span (`" james.smith@aol.com,"`) and one merged phone span (`"555-123-4567."`).
+
+`max` produces cleaner contiguous spans; `simple` fragments at sub-token boundaries. At span-IoU 0.5, the longest `simple` fragment (length 16 of 19 gold characters) clears the threshold by itself, so both strategies score the same TP. At stricter IoU thresholds (0.8 for example), `max` would score better on email/phone where `simple` fragments would no longer clear.
+
+Operator takeaway: at the published AI4Privacy scoring threshold, OPF strategy choice is not a precision/recall lever on F1. Stricter span-fidelity requirements would prefer `max`. v1.2 calibration sweep across IoU thresholds and across `simple` / `max` / `first` / `average` strategies is the next investigation.
+
+How to run either: pass `aggregation_strategy` on the OPFDetector constructor (None → service default), or set the `OPF_AGGREGATION` env var on the OPF service container. The benchmark harness exposes both via the `promptguard_full` and `promptguard_full_recall_tuned` pipelines.
+
 ## v1.2 benchmark roadmap
 
-Items the v1.1.1 results surface as worthwhile next steps:
+Items the v1.1.1 + v1.1.2 results surface as worthwhile next steps:
 
-* **OPF recall-tuned operating point sweep.** v1.1 runs OPF at the default operating point. Tonic.ai's published numbers show recall lifts substantially with Viterbi decoding / threshold tuning. A calibration sweep would surface the recall / precision frontier and let operators pick.
+* **OPF operating-point sweep across IoU thresholds.** v1.1.2 confirmed `simple` and `max` produce identical F1 at IoU 0.5 on AI4Privacy English. A sweep across IoU thresholds (0.5 / 0.7 / 0.8 / 0.9) plus the four aggregation strategies would surface the trade-off frontier, especially relevant for use cases that need stricter span fidelity.
 * **Vendor-specific secret recognizers.** Extending the regex set or shipping a Presidio recognizer pack for the long tail (Anypoint, Lob, Sparkpost, Auth0, Artifactory) closes the GitHub Issues Secrets gap.
 * **Cross-category overlap dedup at score time.** The full pipeline's email FP inflation is a harness measurement artifact (action engine handles it correctly at runtime). A score-time dedup pass that mirrors the action engine's behavior would give a more honest detection number.
 * **Multi-language extension.** AI4Privacy ships English / French / German / Italian / Spanish / Dutch. v1.1 measures English only; adding the other languages quantifies cross-locale coverage.

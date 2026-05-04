@@ -40,7 +40,17 @@ MODEL_ID = os.environ.get("OPF_MODEL_ID", "openai/privacy-filter")
 DEVICE = os.environ.get("OPF_DEVICE", "cpu")  # "cpu" or "cuda" or "cuda:0"
 EAGER_LOAD = os.environ.get("OPF_EAGER_LOAD", "1") == "1"
 
-_pipe: Any = None
+# HF token-classification aggregation strategy.
+# "simple" is the default published OPF operating point.
+# "max" / "average" / "first" are the recall-tuned variants we report
+# alongside the default in docs/benchmarks.md so operators can see the
+# precision / recall trade-off rather than picking one in the dark.
+DEFAULT_AGGREGATION = os.environ.get("OPF_AGGREGATION", "simple")
+ALLOWED_AGGREGATIONS = {"simple", "first", "average", "max"}
+
+# Pipelines are cached per aggregation strategy; multiple cohabit the
+# same process so an A/B request does not require a container restart.
+_pipes: dict[str, Any] = {}
 _pipe_load_error: str | None = None
 _lock = threading.Lock()
 _load_thread: threading.Thread | None = None
@@ -60,7 +70,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     if EAGER_LOAD and _load_thread is None:
         def _bg() -> None:
             try:
-                _load_pipeline()
+                _load_pipeline(DEFAULT_AGGREGATION)
             except Exception:
                 logger.exception("eager OPF model load failed")
 
@@ -77,6 +87,7 @@ app = FastAPI(title="PromptGuard OPF service", version="0.1.0a1", lifespan=lifes
 
 class DetectRequest(BaseModel):
     text: str
+    aggregation_strategy: str | None = None  # one of ALLOWED_AGGREGATIONS, or None for default
 
 
 class DetectionItem(BaseModel):
@@ -91,14 +102,19 @@ class DetectResponse(BaseModel):
     detections: list[DetectionItem]
 
 
-def _load_pipeline() -> Any:
-    """Load the HF pipeline once. Errors are captured so /ready can report them."""
-    global _pipe, _pipe_load_error
-    if _pipe is not None:
-        return _pipe
+def _load_pipeline(strategy: str) -> Any:
+    """Load the HF pipeline for `strategy`. Cached per-strategy so an A/B
+    request between strategies does not require a container restart.
+    Errors are captured so /ready can report them.
+    """
+    global _pipe_load_error
+    if strategy not in ALLOWED_AGGREGATIONS:
+        raise ValueError(f"aggregation_strategy must be one of {sorted(ALLOWED_AGGREGATIONS)}")
+    if strategy in _pipes:
+        return _pipes[strategy]
     with _lock:
-        if _pipe is not None:
-            return _pipe
+        if strategy in _pipes:
+            return _pipes[strategy]
         try:
             from transformers import pipeline  # heavy import, deferred
         except Exception as exc:
@@ -106,15 +122,18 @@ def _load_pipeline() -> Any:
             logger.exception("transformers import failed")
             raise
         try:
-            logger.info("loading OPF pipeline: model=%s device=%s", MODEL_ID, DEVICE)
-            _pipe = pipeline(
+            logger.info(
+                "loading OPF pipeline: model=%s device=%s strategy=%s",
+                MODEL_ID, DEVICE, strategy,
+            )
+            _pipes[strategy] = pipeline(
                 task="token-classification",
                 model=MODEL_ID,
                 device=DEVICE,
-                aggregation_strategy="simple",
+                aggregation_strategy=strategy,
             )
             _pipe_load_error = None
-            return _pipe
+            return _pipes[strategy]
         except Exception as exc:
             _pipe_load_error = f"{type(exc).__name__}: {exc}"
             logger.exception("OPF pipeline load failed")
@@ -128,8 +147,14 @@ def health() -> dict[str, str]:
 
 @app.get("/ready")
 def ready() -> dict[str, Any]:
-    if _pipe is not None:
-        return {"status": "ready", "model": MODEL_ID, "device": DEVICE}
+    if DEFAULT_AGGREGATION in _pipes:
+        return {
+            "status": "ready",
+            "model": MODEL_ID,
+            "device": DEVICE,
+            "default_aggregation": DEFAULT_AGGREGATION,
+            "loaded_aggregations": sorted(_pipes.keys()),
+        }
     if _pipe_load_error is not None:
         raise HTTPException(status_code=503, detail={"status": "load_failed", "error": _pipe_load_error})
     raise HTTPException(status_code=503, detail={"status": "loading", "model": MODEL_ID})
@@ -137,8 +162,14 @@ def ready() -> dict[str, Any]:
 
 @app.post("/detect", response_model=DetectResponse)
 def detect(req: DetectRequest) -> DetectResponse:
+    strategy = req.aggregation_strategy or DEFAULT_AGGREGATION
+    if strategy not in ALLOWED_AGGREGATIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"aggregation_strategy must be one of {sorted(ALLOWED_AGGREGATIONS)}",
+        )
     try:
-        pipe = _load_pipeline()
+        pipe = _load_pipeline(strategy)
     except Exception as exc:
         raise HTTPException(status_code=503, detail=f"pipeline unavailable: {exc!r}") from exc
 

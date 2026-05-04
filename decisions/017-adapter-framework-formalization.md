@@ -3,7 +3,7 @@
 **Date:** 2026-05-04
 **Status:** Accepted
 **Phase:** v1 (adapter framework completion)
-**Author:** Claude Code (autonomous)
+**Author:** MahdiHedhli
 
 ---
 
@@ -62,7 +62,7 @@ lands v1.
 Ship `PurviewDLPPolicy` as a real adapter that loads a JSON SIT export
 and translates to PromptGuard `Policy`. Sample fixture
 `tests/fixtures/purview/sample-sit-export.json` has 5 information
-types covering categories Mahdi typically deals with. The Microsoft
+types covering common engagement-side categories. The Microsoft
 Graph API fetch is documented as v1.1 work via a `_v1_1_todo` key in
 the fixture itself.
 

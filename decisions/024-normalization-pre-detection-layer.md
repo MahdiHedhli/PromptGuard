@@ -17,7 +17,7 @@ zero-width-injected credential is no longer contiguous. The same holds
 for confusable substitution (Cyrillic 'а' for Latin 'a'), HTML entity
 encoding (`&#x41;` for `A`), URL percent-encoding, and base64-wrapping.
 
-A parallel project (PromptGate) shipped a normalization layer in its
+Other inline-detection prototypes ship a normalization layer in their
 v0; the v1.1 review surfaced this as a structural gap in PromptGuard.
 The threat-model entry for this attack class is A8 in
 `docs/threat-model.md`.

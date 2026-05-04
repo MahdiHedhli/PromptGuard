@@ -3,7 +3,7 @@
 **Date:** 2026-05-02
 **Status:** Accepted
 **Phase:** v1 (reversible TOKENIZE)
-**Author:** Claude Code (autonomous)
+**Author:** MahdiHedhli
 
 ---
 

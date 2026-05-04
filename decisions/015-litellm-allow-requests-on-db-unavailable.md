@@ -3,7 +3,7 @@
 **Date:** 2026-05-03
 **Status:** Accepted
 **Phase:** v1 (v1 carryover closure)
-**Author:** Claude Code (autonomous)
+**Author:** MahdiHedhli
 
 ---
 
@@ -19,7 +19,7 @@ v1 daily report flagged two paths to fix this:
 1. Set `general_settings.allow_requests_on_db_unavailable: true`.
 2. Strip `?beta=true` at proxy ingress.
 
-Mahdi picked option 1 in the v1 plan.
+Option 1 was selected in the v1 plan.
 
 PromptGuard's threat model treats the proxy as a per-developer local
 process. We do not use LiteLLM's spend tracking, virtual-key issuance,

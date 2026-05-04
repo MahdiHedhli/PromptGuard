@@ -31,16 +31,26 @@ from promptguard.detectors.base import DetectorAdapter
 DEFAULT_BASE_URL = os.environ.get("PROMPTGUARD_OPF_URL", "http://localhost:8081")
 DEFAULT_TIMEOUT_S = float(os.environ.get("PROMPTGUARD_OPF_TIMEOUT_S", "10.0"))
 
-# OPF released 2026-04-22 with these eight categories (see research-notes section 6).
-# Categories not present in our vocabulary fall back to OTHER for visibility.
+# OPF (openai/privacy-filter) emits these labels. Empirically verified
+# on the model the v1.1.1 benchmarks ran against:
+#   private_person, private_email, private_address, private_phone,
+#   private_date, private_url, account_number, secret, private_id,
+#   background.
+# Categories not present in PromptGuard's vocabulary fall back to OTHER
+# for visibility. We map `private_person` -> PRIVATE_NAME (the model's
+# internal label name; PromptGuard uses PRIVATE_NAME externally to be
+# consistent with Presidio's PERSON recognizer).
 OPF_LABEL_TO_CATEGORY: dict[str, Category] = {
     "account_number": Category.ACCOUNT_NUMBER,
     "private_address": Category.PRIVATE_ADDRESS,
     "private_email": Category.EMAIL,
     "private_name": Category.PRIVATE_NAME,
+    "private_person": Category.PRIVATE_NAME,
     "private_phone": Category.PRIVATE_PHONE,
     "secret": Category.SECRET,
     "private_date": Category.OTHER,
+    "private_url": Category.DOMAIN,
+    "private_id": Category.OTHER,
     "background": Category.OTHER,
 }
 
@@ -53,10 +63,16 @@ class OPFDetector(DetectorAdapter):
         base_url: str = DEFAULT_BASE_URL,
         timeout_s: float = DEFAULT_TIMEOUT_S,
         client: httpx.AsyncClient | None = None,
+        aggregation_strategy: str | None = None,
     ) -> None:
         self._base_url = base_url.rstrip("/")
         self._timeout_s = timeout_s
         self._client = client
+        # None -> use the service's DEFAULT_AGGREGATION ("simple" out of
+        # the box). Pass "max" / "first" / "average" to opt into a
+        # recall-tuned operating point. See DEC-026 + docs/benchmarks.md
+        # for the published default vs recall-tuned comparison.
+        self._aggregation_strategy = aggregation_strategy
 
     async def _http(self) -> httpx.AsyncClient:
         if self._client is None:
@@ -65,7 +81,10 @@ class OPFDetector(DetectorAdapter):
 
     async def detect(self, text: str) -> list[Detection]:
         client = await self._http()
-        resp = await client.post(f"{self._base_url}/detect", json={"text": text})
+        body: dict[str, Any] = {"text": text}
+        if self._aggregation_strategy is not None:
+            body["aggregation_strategy"] = self._aggregation_strategy
+        resp = await client.post(f"{self._base_url}/detect", json=body)
         resp.raise_for_status()
         payload: dict[str, Any] = resp.json()
         return _parse_detections(payload, detector_name=self.name)

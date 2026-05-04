@@ -18,11 +18,10 @@ The architectural argument for PromptGuard: how it is put together, and the load
                             v            v
                    +------------------+  +-----------------+
                    | DetectionPipeline|  | TokenRestorer   |
-                   |                  |  | (per-convo map) |
+                   |  Normalization   |  | (per-convo map) |
                    |  Regex           |  +-----------------+
                    |  OPF (HTTP)      |          ^
                    |  Presidio (HTTP) |          |
-                   |  LLM judge (off) |          |
                    +------------------+          |
                             |                    |
                             v                    |
@@ -102,7 +101,7 @@ The Presidio anonymizer is deliberately not used. Presidio's anonymization vocab
 
 ### 5.1 Multi-stage detection, not one classifier
 
-Regex catches structured shapes (PEM keys, cloud credentials, JWTs, DB URLs, RFC 1918) deterministically and at zero per-request cost. OPF catches context-aware PII the regex layer cannot see by shape (names, addresses, free-form secrets). Presidio carries the org-specific custom recognizers an enterprise team will inevitably need (codenames, customer names, internal hostnames). The LLM judge is a paraphrase backstop, off by default.
+Regex catches structured shapes (PEM keys, cloud credentials, JWTs, DB URLs, RFC 1918) deterministically and at zero per-request cost. OPF catches context-aware PII the regex layer cannot see by shape (names, addresses, free-form secrets). Presidio carries the org-specific custom recognizers an enterprise team will inevitably need (codenames, customer names, internal hostnames). NormalizationDetector runs first as the canonicalization layer so encoded payloads cannot bypass any of the above. An LLM judge layer was prototyped for paraphrased and adversarial cases and removed in v1.1 (DEC-025); the validation harness ships with the codebase for v2 revisitation.
 
 This is structural: no single detector is sufficient. Tonic.ai's published OPF benchmark on AI4Privacy shows OPF default-operating-point recall around 0.10 on out-of-distribution web crawls. The regex layer covers exactly the categories OPF underperforms on at default operating points; OPF covers exactly what regex cannot see by shape. Each layer is calibrated against what the others miss.
 

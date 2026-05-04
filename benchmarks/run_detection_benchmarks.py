@@ -152,7 +152,7 @@ def _synth_corpus() -> list[CorpusExample]:
         "Memory usage on the worker pool is hovering around 60 percent today.",
         "Refactoring the trie traversal cut p99 by about ten percent.",
         "The retro action items are split between docs and the consistency bug.",
-        "We deferred the cache invalidation work to next sprint.",
+        "Cache invalidation work was deferred to a later release.",
         "Coverage on the new module landed at 87 percent on the first commit.",
         "The migration test passed with the new schema applied.",
         "We're keeping the feature flag rolled out at 25 percent for now.",

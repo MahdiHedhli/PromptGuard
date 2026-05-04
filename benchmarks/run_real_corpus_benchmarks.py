@@ -252,20 +252,22 @@ def _build_pipeline(name: str) -> DetectionPipeline:
         return DetectionPipeline([_BaselineLiteLLMRegex()])
     if name == "promptguard_regex":
         return DetectionPipeline([RegexDetector()], normalizer=NormalizationDetector())
-    if name == "promptguard_full":
+    # `promptguard_full` and `promptguard_full_recall_tuned` differ only
+    # in the OPF aggregation strategy. "simple" is the default operating
+    # point most published benchmarks report against; "max" is the
+    # recall-tuned variant the v1.1.2 brief asked for.
+    if name in ("promptguard_full", "promptguard_full_recall_tuned"):
         detectors: list[DetectorAdapter] = [RegexDetector()]
         opf_url = os.environ.get("PROMPTGUARD_OPF_URL", "http://localhost:8081")
         presidio_url = os.environ.get(
             "PROMPTGUARD_PRESIDIO_URL", "http://localhost:5002"
         )
-        # Probe each remote adapter; only include if reachable. The full-
-        # pipeline numbers are still labeled "full" but the per-run output
-        # records which detectors were actually present.
+        opf_strategy = "max" if name == "promptguard_full_recall_tuned" else None
         try:
             import httpx
 
             httpx.get(f"{opf_url}/ready", timeout=2.0).raise_for_status()
-            detectors.append(OPFDetector(base_url=opf_url))
+            detectors.append(OPFDetector(base_url=opf_url, aggregation_strategy=opf_strategy))
         except Exception:
             pass
         try:

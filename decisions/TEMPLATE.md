@@ -3,7 +3,7 @@
 **Date:** YYYY-MM-DD
 **Status:** Accepted / Superseded by DEC-NNN
 **Phase:** [phase from roadmap]
-**Author:** Claude Code (autonomous)
+**Author:** MahdiHedhli
 
 ---
 

@@ -13,4 +13,4 @@ Corpus: 220 examples (160 positive, 60 negative).
 | private_key | 1.000 | 1.000 | 1.000 | 20 | 0 | 0 |
 | secret | 1.000 | 1.000 | 1.000 | 20 | 0 | 0 |
 
-Elapsed: 14 ms total, 0.07 ms per example.
+Elapsed: 16 ms total, 0.07 ms per example.

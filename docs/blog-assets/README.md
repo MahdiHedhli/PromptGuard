@@ -27,14 +27,13 @@ The outline numbering tracks `docs/research-notes.md` section 14:
 
 ## Capture protocol
 
-Per `~/.claude/projects/.../memory/feedback_blog_asset_protocol.md`:
-whenever I produce something blog-quotable (benchmark numbers, code
-snippets that illustrate a design point, screenshots, latency charts),
-drop it here with a numbered filename and a one-line entry above. The
-README stays the master index.
+New blog-quotable artifacts (benchmark numbers, code snippets,
+screenshots, latency charts) land here with a numbered filename and a
+one-line entry in the catalog above. The README is the master index.
 
 ## Pending captures
 
-- Latency p50/p95/p99 chart from v1.1 benchmarks.
-- Side-by-side regex / OPF / Presidio / layered F1 numbers from v1.1 benchmarks.
+- Latency p50/p95/p99 chart from the real-corpus benchmarks.
+- Side-by-side regex / OPF / Presidio / layered F1 numbers from the
+  real-corpus benchmarks (per-pipeline, per-category).
 - Schema-error UX example: `at line 7, column 12 (rules.2.action): ... got 'REJECT'` (slots into the policy-schema sidebar).
