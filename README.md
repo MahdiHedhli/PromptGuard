@@ -63,6 +63,15 @@ PROMPTGUARD_POLICY_FILE=/app/policies/regex-only.yaml docker compose up -d --wai
 
 If something on the host already binds port 4000 (LiteLLM), 5002 (Presidio), or 8081 (OPF), override with `PROMPTGUARD_LITELLM_PORT`, `PROMPTGUARD_PRESIDIO_PORT`, `PROMPTGUARD_OPF_PORT`. Set them in `.env` to make the override durable.
 
+## Demo
+
+Two routing paths documented for running real prompts through the proxy:
+
+- [`tools/demo/setup-claude-cli.md`](tools/demo/setup-claude-cli.md) — canonical demo path. Configure `claude` CLI v2.x via `ANTHROPIC_BASE_URL` + `ANTHROPIC_AUTH_TOKEN` to route through PromptGuard. Includes a TOKENIZE round-trip example where the user pastes an internal IP, the upstream sees a `[INTERNAL_IP_<hex>]` token, the model echoes the token, and the reverse path restores the original to the user's terminal.
+- [`tools/demo/setup-cursor.md`](tools/demo/setup-cursor.md) — Cursor (or any OpenAI-compatible client) via the custom-base-URL setting. Verification commands, version notes, caveats about IDE feature paths that may bypass the override.
+
+For independent wire verification (capturing what bytes actually leave the host), [`tools/mitm-verify/`](tools/mitm-verify/) ships an opt-in mitmproxy harness positioned between LiteLLM and the upstream. `make -C tools/mitm-verify up` brings it online; `make -C tools/mitm-verify test` runs the canned prompt suite and writes a Markdown summary.
+
 ## Architecture
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full picture and [docs/threat-model.md](docs/threat-model.md) for what PromptGuard does and does not defend against. The locked design decisions live in [docs/research-notes.md](docs/research-notes.md).
