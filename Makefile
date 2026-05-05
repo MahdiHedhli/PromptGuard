@@ -49,6 +49,8 @@ test-integration:
 
 .PHONY: smoke
 smoke:
+	@echo ">>> building docker stack (picks up source changes)"
+	docker compose build
 	@echo ">>> bringing up docker stack"
 	docker compose up -d --wait
 	@echo ">>> running docker-marked integration tests"
